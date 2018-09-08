@@ -91,23 +91,26 @@ Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
 
 getLogManager().getLogger("").setLevel(WARNING)
 
-val file = File("./input.zip")
-ZipInputStream(FileInputStream(file)).use { zip ->
-    val transactions = mutableListOf<Transaction>()
+val transactions = mutableListOf<Transaction>()
 
-    var entry = zip.nextEntry
-    while (entry != null) {
-        val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
-        transactions.addAll(fileTransactions)
-        entry = zip.nextEntry
+for (arg in args) {
+    val file = File(arg)
+    ZipInputStream(FileInputStream(file)).use { zip ->
+
+        var entry = zip.nextEntry
+        while (entry != null) {
+            val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
+            transactions.addAll(fileTransactions)
+            entry = zip.nextEntry
+        }
     }
+}
 
-    transactions.sortBy { it.date }
+transactions.sortBy { it.date }
 
-    val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Debtor", "Type", "Description")
-    val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
-    transactions.forEach {
-        printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.debtor.name, it.type, it.description)
-        printer.flush()
-    }
+val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Debtor", "Type", "Description")
+val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
+transactions.forEach {
+    printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.debtor.name, it.type, it.description)
+    printer.flush()
 }
