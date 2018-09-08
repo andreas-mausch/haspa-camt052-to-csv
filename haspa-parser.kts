@@ -56,18 +56,22 @@ class Camt052File(val inputStream: InputStream) {
         return entries.asList().map { node ->
             val entry = node as Element
 
-            val debit = (xpath.evaluate("CdtDbtInd", entry, NODE) as Element).textContent == "DBIT"
+            fun element(key: String): Element {
+                return xpath.evaluate(key, entry, NODE) as Element
+            }
 
-            val amountElement = xpath.evaluate("Amt", entry, NODE) as Element
+            val debit = element("CdtDbtInd").textContent == "DBIT"
+
+            val amountElement = element("Amt")
             val amount = amountElement.textContent.toBigDecimal()
             val currency = amountElement.getAttribute("Ccy")
             val money = Money.of(if (debit) amount.negate() else amount, currency)
 
-            val creditor = (xpath.evaluate("NtryDtls/TxDtls/RltdPties/Cdtr/Nm", entry, NODE) as Element).textContent
-            val debtor = (xpath.evaluate("NtryDtls/TxDtls/RltdPties/Dbtr/Nm", entry, NODE) as Element).textContent
+            val creditor = element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm").textContent
+            val debtor = element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm").textContent
 
-            val date = LocalDate.parse((xpath.evaluate("BookgDt/Dt", entry, NODE) as Element).textContent)
-            val valuta = LocalDate.parse((xpath.evaluate("ValDt/Dt", entry, NODE) as Element).textContent)
+            val date = LocalDate.parse(element("BookgDt/Dt").textContent)
+            val valuta = LocalDate.parse(element("ValDt/Dt").textContent)
 
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
 
