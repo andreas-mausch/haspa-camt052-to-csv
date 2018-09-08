@@ -4,6 +4,7 @@
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
+import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import java.io.File
 import java.io.InputStream
@@ -15,6 +16,14 @@ import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants.NODE
 import javax.xml.xpath.XPathConstants.NODESET
 import javax.xml.xpath.XPathFactory
+
+fun NodeList.asList(): List<Node> {
+    val nodes = mutableListOf<Node>()
+    repeat(length) { index ->
+        nodes.add(item(index))
+    }
+    return nodes
+}
 
 class Camt052File(val inputStream: InputStream) {
 
@@ -46,11 +55,18 @@ class Camt052File(val inputStream: InputStream) {
             val currency = amountElement.getAttribute("Ccy")
             val money = Money.of(if (debit) amount.negate() else amount, currency)
 
-            println("Amount: $money")
+            val creditor = (xpath.evaluate("NtryDtls/TxDtls/RltdPties/Cdtr/Nm", entry, NODE) as Element).textContent
+            val debtor = (xpath.evaluate("NtryDtls/TxDtls/RltdPties/Dbtr/Nm", entry, NODE) as Element).textContent
+
+            val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
+
+            val transaction = Transaction(money, Party(creditor), Party(debtor), texts[0], texts[1])
+            println("Transaction: $transaction")
         }
     }
 
-    data class Entry(val amount: Money)
+    data class Party(val name: String)
+    data class Transaction(val amount: Money, val creditor: Party, val debtor: Party, val type: String, val description: String)
 }
 
 Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
