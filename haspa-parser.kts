@@ -38,13 +38,19 @@ class Camt052File(val inputStream: InputStream) {
 
         repeat(entries.length) { index ->
             val entry = entries.item(index) as Element
+
+            val debit = (xpath.evaluate("CdtDbtInd", entry, NODE) as Element).textContent == "DBIT"
+
             val amountElement = xpath.evaluate("Amt", entry, NODE) as Element
             val amount = amountElement.textContent.toBigDecimal()
             val currency = amountElement.getAttribute("Ccy")
-            val money = Money.of(amount, currency)
-            println(money)
+            val money = Money.of(if (debit) amount.negate() else amount, currency)
+
+            println("Amount: $money")
         }
     }
+
+    data class Entry(val amount: Money)
 }
 
 Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
