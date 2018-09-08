@@ -23,6 +23,7 @@ import javax.xml.xpath.XPathConstants.NODESET
 import javax.xml.xpath.XPathFactory
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
+import java.time.LocalDate
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -65,14 +66,17 @@ class Camt052File(val inputStream: InputStream) {
             val creditor = (xpath.evaluate("NtryDtls/TxDtls/RltdPties/Cdtr/Nm", entry, NODE) as Element).textContent
             val debtor = (xpath.evaluate("NtryDtls/TxDtls/RltdPties/Dbtr/Nm", entry, NODE) as Element).textContent
 
+            val date = LocalDate.parse((xpath.evaluate("BookgDt/Dt", entry, NODE) as Element).textContent)
+            val valuta = LocalDate.parse((xpath.evaluate("ValDt/Dt", entry, NODE) as Element).textContent)
+
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
 
-            Transaction(money, Party(creditor), Party(debtor), texts[0], texts[1])
+            Transaction(date, valuta, money, Party(creditor), Party(debtor), texts[0], texts[1])
         }
     }
 
     data class Party(val name: String)
-    data class Transaction(val amount: Money, val creditor: Party, val debtor: Party, val type: String, val description: String)
+    data class Transaction(val date: LocalDate, val valuta: LocalDate, val amount: Money, val creditor: Party, val debtor: Party, val type: String, val description: String)
 }
 
 Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
@@ -82,10 +86,10 @@ getLogManager().getLogger("").setLevel(WARNING)
 val file = File("./input.xml")
 FileInputStream(file).use {
     val transactions = Camt052File(it).parse()
-    val format = DEFAULT.withDelimiter(';').withHeader("Amount", "Currency", "Creditor", "Debtor", "Type", "Description")
+    val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Debtor", "Type", "Description")
     CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format).use { printer ->
         transactions.forEach {
-            printer.printRecord(DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.debtor.name, it.type, it.description)
+            printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.debtor.name, it.type, it.description)
         }
     }
 }
