@@ -1,21 +1,28 @@
 #!/usr/bin/env kscript
 
 @file:DependsOn("org.javamoney:moneta:1.3@pom")
+@file:DependsOn("org.apache.commons:commons-csv:1.5")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
+import org.apache.commons.csv.CSVFormat.*
+import org.apache.commons.csv.CSVPrinter
 import java.io.File
 import java.io.InputStream
 import java.io.FileInputStream
+import java.io.OutputStreamWriter
 import java.util.logging.Level.*
 import java.util.logging.Logger
 import java.util.logging.LogManager.*
+import java.util.Locale.*
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants.NODE
 import javax.xml.xpath.XPathConstants.NODESET
 import javax.xml.xpath.XPathFactory
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -30,7 +37,7 @@ class Camt052File(val inputStream: InputStream) {
     val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(inputStream)
     val xpath = XPathFactory.newInstance().newXPath()
 
-    fun parse() {
+    fun parse(): List<Transaction> {
         /*
             camt looks like a great file format to me. not.
             It has a lot of unreadable, crypticly shortened names.
@@ -45,8 +52,8 @@ class Camt052File(val inputStream: InputStream) {
 
         val entries = xpath.evaluate("/Document/BkToCstmrAcctRpt/Rpt/Ntry", document, NODESET) as NodeList
 
-        repeat(entries.length) { index ->
-            val entry = entries.item(index) as Element
+        return entries.asList().map { node ->
+            val entry = node as Element
 
             val debit = (xpath.evaluate("CdtDbtInd", entry, NODE) as Element).textContent == "DBIT"
 
@@ -60,8 +67,7 @@ class Camt052File(val inputStream: InputStream) {
 
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
 
-            val transaction = Transaction(money, Party(creditor), Party(debtor), texts[0], texts[1])
-            println("Transaction: $transaction")
+            Transaction(money, Party(creditor), Party(debtor), texts[0], texts[1])
         }
     }
 
@@ -75,5 +81,11 @@ getLogManager().getLogger("").setLevel(WARNING)
 
 val file = File("./input.xml")
 FileInputStream(file).use {
-    Camt052File(it).parse()
+    val transactions = Camt052File(it).parse()
+    val format = DEFAULT.withDelimiter(';').withHeader("Amount", "Currency", "Creditor", "Debtor", "Type", "Description")
+    CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format).use { printer ->
+        transactions.forEach {
+            printer.printRecord(DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.debtor.name, it.type, it.description)
+        }
+    }
 }
