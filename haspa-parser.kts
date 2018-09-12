@@ -21,6 +21,9 @@ import java.util.logging.LogManager.*
 import java.util.Locale.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.nio.file.Files.*
+import java.nio.file.Path
+import java.nio.file.Paths
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants.NODE
 import javax.xml.xpath.XPathConstants.NODESET
@@ -48,7 +51,7 @@ class Camt052File(val inputStream: InputStream) {
     fun parse(): List<Transaction> {
         /*
             camt looks like a great file format to me. not.
-            It has a lot of unreadable, crypticly shortened names.
+            It has a lot of unreadable, cryptically shortened names.
     
             https://www.bayernlb.de/internet/media/de/ir/downloads_1/zahlungsverkehr/formate_1/camt05X.pdf
     
@@ -87,21 +90,33 @@ class Camt052File(val inputStream: InputStream) {
     }
 }
 
+// This is a dirty hack to get a normal classloader
+// See https://github.com/holgerbrandl/kscript/issues/155
+// and https://youtrack.jetbrains.net/issue/KT-26624
 Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
 
 getLogManager().getLogger("").setLevel(WARNING)
 
+fun isZip(path: Path): Boolean = probeContentType(path) == "application/zip"
+
 val transactions = mutableListOf<Transaction>()
 
 for (arg in args) {
-    val file = File(arg)
-    ZipInputStream(FileInputStream(file)).use { zip ->
+    val path = Paths.get(arg)
 
-        var entry = zip.nextEntry
-        while (entry != null) {
-            val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
+    if (isZip(path)) {
+        ZipInputStream(FileInputStream(path.toFile())).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
+                transactions.addAll(fileTransactions)
+                entry = zip.nextEntry
+            }
+        }
+    } else {
+        FileInputStream(path.toFile()).use { xml ->
+            val fileTransactions = Camt052File(CloseShieldInputStream(xml)).parse()
             transactions.addAll(fileTransactions)
-            entry = zip.nextEntry
         }
     }
 }
