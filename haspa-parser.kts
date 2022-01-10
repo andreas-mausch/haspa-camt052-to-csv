@@ -3,6 +3,7 @@
 @file:DependsOn("org.javamoney:moneta:1.3@pom")
 @file:DependsOn("org.apache.commons:commons-csv:1.5")
 @file:DependsOn("commons-io:commons-io:2.6")
+@file:DependsOn("org.apache.commons:commons-lang3:3.12.0")
 @file:DependsOn("org.apache.tika:tika-core:2.2.1")
 
 import org.javamoney.moneta.Money
@@ -12,6 +13,7 @@ import org.w3c.dom.NodeList
 import org.apache.commons.csv.CSVFormat.*
 import org.apache.commons.csv.CSVPrinter
 import org.apache.commons.io.input.CloseShieldInputStream
+import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
 import java.io.File
 import java.io.InputStream
@@ -44,6 +46,8 @@ fun NodeList.asList(): List<Node> {
 
 data class Party(val name: String, val iban: String)
 data class Transaction(val date: LocalDate, val valuta: LocalDate, val amount: Money, val creditor: Party, val debtor: Party, val type: String, val description: String)
+
+fun String.normalizeSpace(): String = normalizeSpace(this)
 
 class Camt052File(val inputStream: InputStream) {
 
@@ -79,16 +83,16 @@ class Camt052File(val inputStream: InputStream) {
             val currency = amountElement.getAttribute("Ccy")
             val money = Money.of(if (debit) amount.negate() else amount, currency)
 
-            val creditor = element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")?.textContent ?: ""
-            val creditorIban = element("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")?.textContent ?: ""
-            val debtor = element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?.textContent ?: ""
-            val debtorIban = element("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?.textContent ?: ""
+            val creditor = element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")?.textContent?.normalizeSpace() ?: ""
+            val creditorIban = element("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")?.textContent?.normalizeSpace() ?: ""
+            val debtor = element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?.textContent?.normalizeSpace() ?: ""
+            val debtorIban = element("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?.textContent?.normalizeSpace() ?: ""
 
             val date = LocalDate.parse(element("BookgDt/Dt")!!.textContent)
             val valuta = LocalDate.parse(element("ValDt/Dt")!!.textContent)
 
-            val type = element("AddtlNtryInf")?.textContent ?: ""
-            val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
+            val type = element("AddtlNtryInf")?.textContent?.normalizeSpace() ?: ""
+            val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent.normalizeSpace() }
 
             Transaction(date, valuta, money, Party(creditor, creditorIban), Party(debtor, debtorIban), type, texts.getOrElse(0, { "" }))
         }
