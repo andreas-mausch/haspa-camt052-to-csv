@@ -42,7 +42,7 @@ fun NodeList.asList(): List<Node> {
     return nodes
 }
 
-data class Party(val name: String)
+data class Party(val name: String, val iban: String)
 data class Transaction(val date: LocalDate, val valuta: LocalDate, val amount: Money, val creditor: Party, val debtor: Party, val type: String, val description: String)
 
 class Camt052File(val inputStream: InputStream) {
@@ -80,7 +80,9 @@ class Camt052File(val inputStream: InputStream) {
             val money = Money.of(if (debit) amount.negate() else amount, currency)
 
             val creditor = element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")?.textContent ?: ""
+            val creditorIban = element("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")?.textContent ?: ""
             val debtor = element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?.textContent ?: ""
+            val debtorIban = element("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?.textContent ?: ""
 
             val date = LocalDate.parse(element("BookgDt/Dt")!!.textContent)
             val valuta = LocalDate.parse(element("ValDt/Dt")!!.textContent)
@@ -88,7 +90,7 @@ class Camt052File(val inputStream: InputStream) {
             val type = element("AddtlNtryInf")?.textContent ?: ""
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
 
-            Transaction(date, valuta, money, Party(creditor), Party(debtor), type, texts.getOrElse(0, { "" }))
+            Transaction(date, valuta, money, Party(creditor, creditorIban), Party(debtor, debtorIban), type, texts.getOrElse(0, { "" }))
         }
     }
 }
@@ -126,9 +128,9 @@ for (arg in args) {
 
 transactions.sortBy { it.date }
 
-val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Debtor", "Type", "Description")
+val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
 val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
 transactions.forEach {
-    printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.debtor.name, it.type, it.description)
+    printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
     printer.flush()
 }
