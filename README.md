@@ -14,3 +14,9 @@ You can also pass a xml file directly.
 ```
 $ kscript haspa-parser.kts ./camt_1xxxxxxxxx_15.01.2018.xml
 ```
+
+And via docker:
+
+```
+$ docker run -it --rm -v $PWD:/opt/script --entrypoint=bash holgerbrandl/kscript:2.9.3 -c "source /root/.sdkman/bin/sdkman-init.sh && /usr/bin/env kscript /opt/script/haspa-parser.kts /opt/script/*camt52Booked.ZIP"
+```
