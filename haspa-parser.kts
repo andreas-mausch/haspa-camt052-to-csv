@@ -85,9 +85,10 @@ class Camt052File(val inputStream: InputStream) {
             val date = LocalDate.parse(element("BookgDt/Dt")!!.textContent)
             val valuta = LocalDate.parse(element("ValDt/Dt")!!.textContent)
 
+            val type = element("AddtlNtryInf")?.textContent ?: ""
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent }
 
-            Transaction(date, valuta, money, Party(creditor), Party(debtor), texts.getOrElse(0, { "" }), texts.getOrElse(1, { "" }))
+            Transaction(date, valuta, money, Party(creditor), Party(debtor), type, texts.getOrElse(0, { "" }))
         }
     }
 }
