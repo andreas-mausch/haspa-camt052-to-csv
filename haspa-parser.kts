@@ -3,6 +3,7 @@
 @file:DependsOn("org.javamoney:moneta:1.3@pom")
 @file:DependsOn("org.apache.commons:commons-csv:1.5")
 @file:DependsOn("commons-io:commons-io:2.6")
+@file:DependsOn("org.apache.tika:tika-core:2.2.1")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
@@ -11,6 +12,7 @@ import org.w3c.dom.NodeList
 import org.apache.commons.csv.CSVFormat.*
 import org.apache.commons.csv.CSVPrinter
 import org.apache.commons.io.input.CloseShieldInputStream
+import org.apache.tika.Tika
 import java.io.File
 import java.io.InputStream
 import java.io.FileInputStream
@@ -97,7 +99,7 @@ Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
 
 getLogManager().getLogger("").setLevel(WARNING)
 
-fun isZip(path: Path): Boolean = probeContentType(path) == "application/zip"
+fun isZip(path: Path): Boolean = Tika().detect(path) == "application/zip"
 
 val transactions = mutableListOf<Transaction>()
 
