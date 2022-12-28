@@ -1,10 +1,11 @@
 #!/usr/bin/env kscript
 
-@file:DependsOn("org.javamoney:moneta:1.3@pom")
+@file:DependsOn("org.javamoney:moneta:pom:1.3")
 @file:DependsOn("org.apache.commons:commons-csv:1.5")
 @file:DependsOn("commons-io:commons-io:2.6")
 @file:DependsOn("org.apache.commons:commons-lang3:3.12.0")
-@file:DependsOn("org.apache.tika:tika-core:2.2.1")
+@file:DependsOn("org.apache.tika:tika-core:2.6.0")
+@file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
@@ -98,11 +99,6 @@ class Camt052File(val inputStream: InputStream) {
         }
     }
 }
-
-// This is a dirty hack to get a normal classloader
-// See https://github.com/holgerbrandl/kscript/issues/155
-// and https://youtrack.jetbrains.net/issue/KT-26624
-Thread.currentThread().contextClassLoader = Camt052File::class.java.classLoader
 
 getLogManager().getLogger("").setLevel(WARNING)
 
