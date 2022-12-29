@@ -7,9 +7,7 @@
 @file:DependsOn("org.apache.tika:tika-core:2.6.0")
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
-// Latest version of SODS produces corrupt files:
-// https://github.com/miachm/SODS/issues/55
-@file:DependsOn("com.github.miachm.sods:SODS:1.4.0")
+@file:DependsOn("com.github.jferard:fastods:0.8.1")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
@@ -26,6 +24,7 @@ import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.util.logging.Level.*
 import java.util.logging.LogManager.*
+import java.util.logging.Logger.getLogger
 import java.util.Locale.*
 import java.util.zip.ZipInputStream
 import java.nio.file.Files.*
@@ -45,8 +44,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
-import com.github.miachm.sods.Sheet
-import com.github.miachm.sods.SpreadSheet
+import com.github.jferard.fastods.OdsFactory
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -129,12 +127,13 @@ enum class OutputFormat {
     ODS {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
             val headers = listOf("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
-            val sheet = Sheet("MySheet", 1, headers.size)
-            headers.forEachIndexed { index, header -> sheet.getRange(0, index).setValue(header) }
-
-            val spreadsheet = SpreadSheet()
-            spreadsheet.appendSheet(sheet)
-            spreadsheet.save(stream)
+            val odsFactory = OdsFactory.create(getLogger("ods"), US)
+            val writer = odsFactory.createWriter()
+            val document = writer.document()
+            val sheet = document.addTable("MySheet")
+            val row = sheet.getRow(0)
+            headers.forEachIndexed { index, header -> row.getOrCreateCell(index).setStringValue(header) }
+            writer.save(stream)
         }
     };
 
