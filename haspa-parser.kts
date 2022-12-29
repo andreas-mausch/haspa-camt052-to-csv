@@ -6,6 +6,7 @@
 @file:DependsOn("org.apache.commons:commons-lang3:3.12.0")
 @file:DependsOn("org.apache.tika:tika-core:2.6.0")
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
+@file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
@@ -16,15 +17,12 @@ import org.apache.commons.csv.CSVPrinter
 import org.apache.commons.io.input.CloseShieldInputStream
 import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
-import java.io.File
 import java.io.InputStream
 import java.io.FileInputStream
 import java.io.OutputStreamWriter
 import java.util.logging.Level.*
-import java.util.logging.Logger
 import java.util.logging.LogManager.*
 import java.util.Locale.*
-import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.nio.file.Files.*
 import java.nio.file.Path
@@ -36,6 +34,13 @@ import javax.xml.xpath.XPathFactory
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.LocalDate
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.arguments.unique
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.file
+
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -50,7 +55,7 @@ data class Transaction(val date: LocalDate, val valuta: LocalDate, val amount: M
 
 fun String.normalizeSpace(): String = normalizeSpace(this)
 
-class Camt052File(val inputStream: InputStream) {
+class Camt052File(inputStream: InputStream) {
 
     val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(inputStream)
     val xpath = XPathFactory.newInstance().newXPath()
@@ -104,33 +109,39 @@ getLogManager().getLogger("").setLevel(WARNING)
 
 fun isZip(path: Path): Boolean = Tika().detect(path) == "application/zip"
 
-val transactions = mutableListOf<Transaction>()
+class HaspaParser : CliktCommand() {
+    private val files by argument().file(mustExist = true).multiple(required=true).unique()
 
-for (arg in args) {
-    val path = Paths.get(arg)
+    override fun run() {
+        val transactions = mutableListOf<Transaction>()
 
-    if (isZip(path)) {
-        ZipInputStream(FileInputStream(path.toFile())).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
-                transactions.addAll(fileTransactions)
-                entry = zip.nextEntry
+        for (file in files) {
+            if (isZip(file.toPath())) {
+                ZipInputStream(FileInputStream(file)).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
+                        transactions.addAll(fileTransactions)
+                        entry = zip.nextEntry
+                    }
+                }
+            } else {
+                FileInputStream(file).use { xml ->
+                    val fileTransactions = Camt052File(CloseShieldInputStream(xml)).parse()
+                    transactions.addAll(fileTransactions)
+                }
             }
         }
-    } else {
-        FileInputStream(path.toFile()).use { xml ->
-            val fileTransactions = Camt052File(CloseShieldInputStream(xml)).parse()
-            transactions.addAll(fileTransactions)
+
+        transactions.sortBy { it.date }
+
+        val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
+        val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
+        transactions.forEach {
+            printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
+            printer.flush()
         }
     }
 }
 
-transactions.sortBy { it.date }
-
-val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
-val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
-transactions.forEach {
-    printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
-    printer.flush()
-}
+HaspaParser().main(args)
