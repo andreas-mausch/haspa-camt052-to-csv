@@ -131,8 +131,11 @@ enum class OutputFormat {
             val writer = odsFactory.createWriter()
             val document = writer.document()
             val sheet = document.addTable("MySheet")
-            val row = sheet.getRow(0)
-            headers.forEachIndexed { index, header -> row.getOrCreateCell(index).setStringValue(header) }
+            val walker = sheet.getWalker()
+            headers.forEach {
+                walker.setStringValue(it)
+                walker.next()
+            }
             writer.save(stream)
         }
     };
