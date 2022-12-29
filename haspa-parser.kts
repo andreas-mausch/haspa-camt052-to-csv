@@ -38,9 +38,10 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.arguments.unique
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
-
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -109,8 +110,13 @@ getLogManager().getLogger("").setLevel(WARNING)
 
 fun isZip(path: Path): Boolean = Tika().detect(path) == "application/zip"
 
+enum class OutputFormat {
+    CSV
+}
+
 class HaspaParser : CliktCommand() {
-    private val files by argument().file(mustExist = true).multiple(required=true).unique()
+    private val files by argument("files").file(mustExist = true).multiple(required = true).unique()
+    private val outputFormat: OutputFormat by option().enum<OutputFormat>().default(OutputFormat.CSV)
 
     override fun run() {
         val transactions = mutableListOf<Transaction>()
@@ -135,11 +141,13 @@ class HaspaParser : CliktCommand() {
 
         transactions.sortBy { it.date }
 
-        val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
-        val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
-        transactions.forEach {
-            printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
-            printer.flush()
+        if (outputFormat == OutputFormat.CSV) {
+            val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
+            val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
+            transactions.forEach {
+                printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
+                printer.flush()
+            }
         }
     }
 }
