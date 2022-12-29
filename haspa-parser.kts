@@ -2,7 +2,7 @@
 
 @file:DependsOn("org.javamoney:moneta:pom:1.4.2")
 @file:DependsOn("org.apache.commons:commons-csv:1.5")
-@file:DependsOn("commons-io:commons-io:2.6")
+@file:DependsOn("commons-io:commons-io:2.11.0")
 @file:DependsOn("org.apache.commons:commons-lang3:3.12.0")
 @file:DependsOn("org.apache.tika:tika-core:2.6.0")
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
@@ -27,7 +27,6 @@ import java.util.Locale.*
 import java.util.zip.ZipInputStream
 import java.nio.file.Files.*
 import java.nio.file.Path
-import java.nio.file.Paths
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants.NODE
 import javax.xml.xpath.XPathConstants.NODESET
@@ -131,27 +130,22 @@ class HaspaParser : CliktCommand() {
     private val outputFormat: OutputFormat by option().enum<OutputFormat>().default(OutputFormat.CSV)
 
     override fun run() {
-        val transactions = mutableListOf<Transaction>()
-
-        for (file in files) {
-            if (isZip(file.toPath())) {
-                ZipInputStream(FileInputStream(file)).use { zip ->
-                    var entry = zip.nextEntry
-                    while (entry != null) {
-                        val fileTransactions = Camt052File(CloseShieldInputStream(zip)).parse()
-                        transactions.addAll(fileTransactions)
-                        entry = zip.nextEntry
+        val transactions = files
+            .flatMap { file ->
+                if (isZip(file.toPath())) {
+                    ZipInputStream(FileInputStream(file)).use { zip ->
+                        generateSequence { zip.nextEntry }
+                            .filterNot { it.isDirectory }
+                            .flatMap { Camt052File(CloseShieldInputStream.wrap(zip)).parse() }
+                            .toList()
+                    }
+                } else {
+                    FileInputStream(file).use {
+                        Camt052File(CloseShieldInputStream.wrap(it)).parse()
                     }
                 }
-            } else {
-                FileInputStream(file).use { xml ->
-                    val fileTransactions = Camt052File(CloseShieldInputStream(xml)).parse()
-                    transactions.addAll(fileTransactions)
-                }
             }
-        }
-
-        transactions.sortBy { it.date }
+            .sortedBy { it.date }
 
         outputFormat.print(transactions, System.out)
     }
