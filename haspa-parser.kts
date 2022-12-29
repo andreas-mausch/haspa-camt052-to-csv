@@ -1,6 +1,6 @@
 #!/usr/bin/env kscript
 
-@file:DependsOn("org.javamoney:moneta:pom:1.3")
+@file:DependsOn("org.javamoney:moneta:pom:1.4.2")
 @file:DependsOn("org.apache.commons:commons-csv:1.5")
 @file:DependsOn("commons-io:commons-io:2.6")
 @file:DependsOn("org.apache.commons:commons-lang3:3.12.0")
