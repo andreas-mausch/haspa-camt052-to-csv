@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
 import java.io.InputStream
 import java.io.FileInputStream
+import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.util.logging.Level.*
 import java.util.logging.LogManager.*
@@ -111,7 +112,18 @@ getLogManager().getLogger("").setLevel(WARNING)
 fun isZip(path: Path): Boolean = Tika().detect(path) == "application/zip"
 
 enum class OutputFormat {
-    CSV
+    CSV {
+        override fun print(transactions: List<Transaction>, stream: OutputStream) {
+            val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
+            val printer = CSVPrinter(OutputStreamWriter(stream, "UTF-8"), format)
+            transactions.forEach {
+                printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
+                printer.flush()
+            }
+        }
+    };
+
+    abstract fun print(transactions: List<Transaction>, stream: OutputStream)
 }
 
 class HaspaParser : CliktCommand() {
@@ -141,14 +153,7 @@ class HaspaParser : CliktCommand() {
 
         transactions.sortBy { it.date }
 
-        if (outputFormat == OutputFormat.CSV) {
-            val format = DEFAULT.withDelimiter(';').withHeader("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
-            val printer = CSVPrinter(OutputStreamWriter(System.out, "UTF-8"), format)
-            transactions.forEach {
-                printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
-                printer.flush()
-            }
-        }
+        outputFormat.print(transactions, System.out)
     }
 }
 
