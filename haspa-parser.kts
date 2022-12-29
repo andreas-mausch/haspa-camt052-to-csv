@@ -7,6 +7,9 @@
 @file:DependsOn("org.apache.tika:tika-core:2.6.0")
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
+// Latest version of SODS produces corrupt files:
+// https://github.com/miachm/SODS/issues/55
+@file:DependsOn("com.github.miachm.sods:SODS:1.4.0")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
@@ -42,6 +45,8 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.miachm.sods.Sheet
+import com.github.miachm.sods.SpreadSheet
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -119,6 +124,15 @@ enum class OutputFormat {
                 printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
                 printer.flush()
             }
+        }
+    },
+    ODS {
+        override fun print(transactions: List<Transaction>, stream: OutputStream) {
+            val sheet = Sheet("MySheet")
+
+            val spreadsheet = SpreadSheet()
+            spreadsheet.appendSheet(sheet)
+            spreadsheet.save(stream)
         }
     };
 
