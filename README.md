@@ -2,7 +2,8 @@ This is a small command line tool to convert camt.052 from the Hamburger Sparkas
 
 # Requirements
 
-kscript (4.1.1) must be installed.
+- kscript >= 4.1.1
+- Kotlin >= 1.8.0
 
 # Run
 
@@ -33,8 +34,10 @@ docker run -it --rm -v $PWD:/opt/script:ro holgerbrandl/kscript:4.1.1 /opt/scrip
 > Caused by: java.lang.ClassNotFoundException: java.sql.SQLException
 
 If you see this, it is [this issue](https://github.com/kscripting/kscript/issues/163).
+This bug is **fixed in Kotlin 1.8.0** (see [this issue](https://youtrack.jetbrains.com/issue/KT-46312)).
 
-I've managed to do this on my MacBook Air M1 (ugly!):
+For older Kotlin versions, there is an ugly workaround to run it via Java 8.
+I've managed to do this on my MacBook Air M1:
 
 ```bash
 brew install --cask homebrew/cask-versions/zulu8
