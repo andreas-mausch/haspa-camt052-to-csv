@@ -128,7 +128,9 @@ enum class OutputFormat {
     },
     ODS {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
-            val sheet = Sheet("MySheet")
+            val headers = listOf("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
+            val sheet = Sheet("MySheet", 1, headers.size)
+            headers.forEachIndexed { index, header -> sheet.getRange(0, index).setValue(header) }
 
             val spreadsheet = SpreadSheet()
             spreadsheet.appendSheet(sheet)
