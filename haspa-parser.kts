@@ -53,6 +53,7 @@ import com.github.jferard.fastods.datastyle.FloatStyleBuilder
 import com.github.jferard.fastods.style.LOFonts
 import com.github.jferard.fastods.style.TableCellStyle
 import com.github.jferard.fastods.style.TableColumnStyle
+import com.github.jferard.fastods.style.TableRowStyle
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -143,15 +144,15 @@ enum class OutputFormat {
             val document = writer.document()
             val sheet = document.addTable("MySheet")
 
-            val columnDataStyle =
-                TableColumnStyle.builder("col-datastyle")
+            val columnDataStyle = TableColumnStyle.builder("col-datastyle")
                 .optimalWidth()
-                .build();
-            sheet.setColumnStyle(0, columnDataStyle);
+                .build()
+            sheet.setColumnStyle(0, columnDataStyle)
 
             val walker = sheet.getWalker()
             headers.forEach {
                 walker.setStringValue(it)
+                walker.setStyle(TableCellStyle.builder("heading-cell").fontWeightBold().build())
                 walker.next()
             }
             walker.nextRow()
