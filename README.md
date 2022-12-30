@@ -29,6 +29,13 @@ You can also run it via `docker`, but this will run into the problem mentioned b
 docker run -it --rm -v $PWD:/opt/script:ro holgerbrandl/kscript:4.1.1 /opt/script/haspa-parser.kts "/opt/script/*camt52Booked.ZIP" > /opt/script/output.csv
 ```
 
+# Debugging .ods
+
+```bash
+unzip -p output.ods content.xml | xmllint --format -
+unzip -p output.ods styles.xml | xmllint --format -
+```
+
 # Troubleshooting
 
 > Caused by: java.lang.ClassNotFoundException: java.sql.SQLException
