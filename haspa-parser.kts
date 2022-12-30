@@ -7,7 +7,9 @@
 @file:DependsOn("org.apache.tika:tika-core:2.6.0")
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
-@file:DependsOn("com.github.jferard:fastods:0.8.1")
+// fastods latest version (0.8.1) has a bug formatting floats:
+// https://github.com/jferard/fastods/issues/242
+@file:DependsOn("com.github.jferard:fastods:0.7.3")
 
 import org.javamoney.moneta.Money
 import org.w3c.dom.Element
@@ -45,6 +47,12 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.jferard.fastods.OdsFactory
+import com.github.jferard.fastods.attribute.SimpleLength
+import com.github.jferard.fastods.datastyle.DataStylesBuilder
+import com.github.jferard.fastods.datastyle.FloatStyleBuilder
+import com.github.jferard.fastods.style.LOFonts
+import com.github.jferard.fastods.style.TableCellStyle
+import com.github.jferard.fastods.style.TableColumnStyle
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -127,15 +135,35 @@ enum class OutputFormat {
     ODS {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
             val headers = listOf("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
-            val odsFactory = OdsFactory.create(getLogger("ods"), US)
-            val writer = odsFactory.createWriter()
+
+            val dataStylesBuilder = DataStylesBuilder.create(GERMANY)
+            dataStylesBuilder.floatStyleBuilder().decimalPlaces(2).groupThousands(true)
+
+            val writer = OdsFactory.builder(getLogger("ods"), GERMANY).dataStyles(dataStylesBuilder.build()).build().createWriter()
             val document = writer.document()
             val sheet = document.addTable("MySheet")
+
+            val columnDataStyle =
+                TableColumnStyle.builder("col-datastyle")
+                .optimalWidth()
+                .build();
+            sheet.setColumnStyle(0, columnDataStyle);
+
             val walker = sheet.getWalker()
             headers.forEach {
                 walker.setStringValue(it)
                 walker.next()
             }
+            walker.nextRow()
+
+            walker.setFloatValue(30000.0)
+            walker.next()
+            walker.setFloatValue(123456.789)
+
+            transactions.forEach {
+                // printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
+            }
+
             writer.save(stream)
         }
     };
