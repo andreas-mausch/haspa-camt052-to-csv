@@ -9,35 +9,8 @@
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
 // fastods latest version (0.8.1) has a bug formatting floats:
 // https://github.com/jferard/fastods/issues/242
-@file:DependsOn("com.github.jferard:fastods:0.7.3")
+@file:DependsOn("com.github.jferard:fastods:0.8.1")
 
-import org.javamoney.moneta.Money
-import org.w3c.dom.Element
-import org.w3c.dom.Node
-import org.w3c.dom.NodeList
-import org.apache.commons.csv.CSVFormat.*
-import org.apache.commons.csv.CSVPrinter
-import org.apache.commons.io.input.CloseShieldInputStream
-import org.apache.commons.lang3.StringUtils.normalizeSpace
-import org.apache.tika.Tika
-import java.io.InputStream
-import java.io.FileInputStream
-import java.io.OutputStream
-import java.io.OutputStreamWriter
-import java.util.logging.Level.*
-import java.util.logging.LogManager.*
-import java.util.logging.Logger.getLogger
-import java.util.Locale.*
-import java.util.zip.ZipInputStream
-import java.nio.file.Files.*
-import java.nio.file.Path
-import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.xpath.XPathConstants.NODE
-import javax.xml.xpath.XPathConstants.NODESET
-import javax.xml.xpath.XPathFactory
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-import java.time.LocalDate
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -47,13 +20,40 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.jferard.fastods.OdsFactory
-import com.github.jferard.fastods.attribute.SimpleLength
-import com.github.jferard.fastods.datastyle.DataStylesBuilder
-import com.github.jferard.fastods.datastyle.FloatStyleBuilder
-import com.github.jferard.fastods.style.LOFonts
+import com.github.jferard.fastods.datastyle.*
+import com.github.jferard.fastods.datastyle.DateTimeStyleFormat.*
 import com.github.jferard.fastods.style.TableCellStyle
 import com.github.jferard.fastods.style.TableColumnStyle
-import com.github.jferard.fastods.style.TableRowStyle
+import org.apache.commons.csv.CSVFormat.*
+import org.apache.commons.csv.CSVPrinter
+import org.apache.commons.io.input.CloseShieldInputStream
+import org.apache.commons.lang3.StringUtils.normalizeSpace
+import org.apache.tika.Tika
+import org.javamoney.moneta.Money
+import org.w3c.dom.Element
+import org.w3c.dom.Node
+import org.w3c.dom.NodeList
+import java.io.FileInputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.io.OutputStreamWriter
+import java.nio.file.Files.*
+import java.nio.file.Path
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.*
+import java.util.Locale.*
+import java.util.logging.Level.*
+import java.util.logging.LogManager.*
+import java.util.logging.Logger.getLogger
+import java.util.zip.ZipInputStream
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.xpath.XPathConstants.NODE
+import javax.xml.xpath.XPathConstants.NODESET
+import javax.xml.xpath.XPathFactory
+
 
 fun NodeList.asList(): List<Node> {
     val nodes = mutableListOf<Node>()
@@ -118,7 +118,7 @@ class Camt052File(inputStream: InputStream) {
     }
 }
 
-getLogManager().getLogger("").setLevel(WARNING)
+getLogManager().getLogger("").level = WARNING
 
 fun isZip(path: Path): Boolean = Tika().detect(path) == "application/zip"
 
@@ -137,19 +137,22 @@ enum class OutputFormat {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
             val headers = listOf("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
 
+            val floatStyle = FloatStyleBuilder("float-style", GERMANY).decimalPlaces(2).groupThousands(true).negativeValueRed().build()
+            val currencyStyle = CurrencyStyleBuilder("currency-style", GERMANY).decimalPlaces(2).groupThousands(true).negativeValueRed().build()
             val dataStylesBuilder = DataStylesBuilder.create(GERMANY)
-            dataStylesBuilder.floatStyleBuilder().decimalPlaces(2).groupThousands(true)
+            dataStylesBuilder.dateStyleBuilder().dateFormat(
+                DateTimeStyleFormat(
+                    LONG_YEAR, DASH,
+                    LONG_MONTH, DASH,
+                    LONG_DAY
+                )
+            )
 
             val writer = OdsFactory.builder(getLogger("ods"), GERMANY).dataStyles(dataStylesBuilder.build()).build().createWriter()
             val document = writer.document()
             val sheet = document.addTable("MySheet")
 
-            val columnDataStyle = TableColumnStyle.builder("col-datastyle")
-                .optimalWidth()
-                .build()
-            sheet.setColumnStyle(0, columnDataStyle)
-
-            val walker = sheet.getWalker()
+            val walker = sheet.walker
             headers.forEach {
                 walker.setStringValue(it)
                 walker.setStyle(TableCellStyle.builder("heading-cell").fontWeightBold().build())
@@ -157,16 +160,35 @@ enum class OutputFormat {
             }
             walker.nextRow()
 
-            walker.setFloatValue(30000.0)
-            walker.next()
-            walker.setFloatValue(123456.789)
-
             transactions.forEach {
-                // printer.printRecord(it.date, it.valuta, DecimalFormat("#.##", DecimalFormatSymbols(US)).format(it.amount.number), it.amount.currency, it.creditor.name, it.creditor.iban, it.debtor.name, it.debtor.iban, it.type, it.description)
+                walker.setDateValue(it.date.toDate())
+                walker.next()
+                walker.setDateValue(it.valuta.toDate())
+                walker.next()
+                walker.setCurrencyValue(it.amount.number, it.amount.currency.currencyCode)
+                walker.setDataStyle(currencyStyle)
+                walker.next()
+                walker.setStringValue(it.amount.currency.currencyCode)
+                walker.next()
+                walker.setStringValue(it.creditor.name)
+                walker.next()
+                walker.setStringValue(it.creditor.iban)
+                walker.next()
+                walker.setStringValue(it.debtor.name)
+                walker.next()
+                walker.setStringValue(it.debtor.iban)
+                walker.next()
+                walker.setStringValue(it.type)
+                walker.next()
+                walker.setStringValue(it.description)
+                walker.next()
+                walker.nextRow()
             }
 
             writer.save(stream)
         }
+
+        private fun LocalDate.toDate(): Date = Date.from(this.atStartOfDay(ZoneId.systemDefault()).toInstant())
     };
 
     abstract fun print(transactions: List<Transaction>, stream: OutputStream)
