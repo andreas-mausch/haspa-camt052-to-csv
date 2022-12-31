@@ -23,12 +23,14 @@ import org.apache.commons.io.input.CloseShieldInputStream
 import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
 import org.javamoney.moneta.Money
+import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument.newSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.table.OdfTableCell
 import org.odftoolkit.odfdom.doc.table.OdfTableRow
 import org.odftoolkit.odfdom.dom.OdfDocumentNamespace.TABLE
 import org.odftoolkit.odfdom.dom.style.OdfStyleFamily.TableCell
 import org.odftoolkit.odfdom.dom.style.props.OdfTextProperties.*
+import org.odftoolkit.odfdom.incubator.doc.number.OdfNumberDateStyle
 import org.odftoolkit.odfdom.incubator.doc.style.OdfStyle
 import org.odftoolkit.odfdom.pkg.OdfName.newName
 import org.w3c.dom.Element
@@ -145,12 +147,21 @@ enum class OutputFormat {
             val headingStyle = styles.newStyle(TableCell)
             headingStyle.setFontWeight("bold")
 
+            val dateStyle = OdfNumberDateStyle(document.contentDom, "yyyy-MM-dd", "numberDateStyle")
+            styles.appendChild(dateStyle)
+
+            val dateStyle2 = styles.newStyle(TableCell)
+            dateStyle2.styleDataStyleNameAttribute = dateStyle.styleNameAttribute
+
             val headRow = sheet.getRowByIndex(0)
             headRow.defaultCellStyle = headingStyle
 
             headers.forEachIndexed { index, header ->
                 headRow.withCell(index, headingStyle) { stringValue = header }
             }
+
+            sheet.getColumnByIndex(0).defaultCellStyle = dateStyle2
+            sheet.getColumnByIndex(1).defaultCellStyle = dateStyle2
 
             transactions.take(5).forEach {
                 val row = sheet.appendRow()
