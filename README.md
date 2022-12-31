@@ -31,6 +31,14 @@ docker run -it --rm -v $PWD:/opt/script:ro holgerbrandl/kscript:4.1.1 /opt/scrip
 
 # Debugging .ods
 
+The ods libraries I've tried are flawed.
+
+- [SODS](https://github.com/miachm/SODS) offers no way to customize date and currency formats.
+- [fastods](https://github.com/jferard/fastods) is a bit buggy:
+  Global float style does not work, and red negative floats are supported (there are methods for it),
+  but the `-neg` style is not used by the cells.
+- [odftoolkit](https://github.com/tdf/odftoolkit) has almost no documentation and some weird inheritance of styles, but seems to be the best bet.
+
 ```bash
 unzip -p output.ods content.xml | xmllint --format -
 unzip -p output.ods styles.xml | xmllint --format -

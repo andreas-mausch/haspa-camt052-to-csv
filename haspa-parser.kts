@@ -7,9 +7,7 @@
 @file:DependsOn("org.apache.tika:tika-core:2.6.0")
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
-// fastods latest version (0.8.1) has a bug formatting floats:
-// https://github.com/jferard/fastods/issues/242
-@file:DependsOn("com.github.jferard:fastods:0.8.1")
+@file:DependsOn("org.odftoolkit:odfdom-java:0.11.0")
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -19,17 +17,20 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
-import com.github.jferard.fastods.OdsFactory
-import com.github.jferard.fastods.datastyle.*
-import com.github.jferard.fastods.datastyle.DateTimeStyleFormat.*
-import com.github.jferard.fastods.style.TableCellStyle
-import com.github.jferard.fastods.style.TableColumnStyle
 import org.apache.commons.csv.CSVFormat.*
 import org.apache.commons.csv.CSVPrinter
 import org.apache.commons.io.input.CloseShieldInputStream
 import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
 import org.javamoney.moneta.Money
+import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument.newSpreadsheetDocument
+import org.odftoolkit.odfdom.doc.table.OdfTableCell
+import org.odftoolkit.odfdom.doc.table.OdfTableRow
+import org.odftoolkit.odfdom.dom.OdfDocumentNamespace.TABLE
+import org.odftoolkit.odfdom.dom.style.OdfStyleFamily.TableCell
+import org.odftoolkit.odfdom.dom.style.props.OdfTextProperties.*
+import org.odftoolkit.odfdom.incubator.doc.style.OdfStyle
+import org.odftoolkit.odfdom.pkg.OdfName.newName
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
@@ -42,12 +43,10 @@ import java.nio.file.Path
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.LocalDate
-import java.time.ZoneId
 import java.util.*
 import java.util.Locale.*
 import java.util.logging.Level.*
 import java.util.logging.LogManager.*
-import java.util.logging.Logger.getLogger
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants.NODE
@@ -77,9 +76,9 @@ class Camt052File(inputStream: InputStream) {
         /*
             camt looks like a great file format to me. not.
             It has a lot of unreadable, cryptically shortened names.
-    
+
             https://www.bayernlb.de/internet/media/de/ir/downloads_1/zahlungsverkehr/formate_1/camt05X.pdf
-    
+
             BkToCstmrAcctRpt: Bank-to-Customer Account Report message
             Rpt: Report
             Ntry: Entry (wow)
@@ -137,58 +136,67 @@ enum class OutputFormat {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
             val headers = listOf("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
 
-            val floatStyle = FloatStyleBuilder("float-style", GERMANY).decimalPlaces(2).groupThousands(true).negativeValueRed().build()
-            val currencyStyle = CurrencyStyleBuilder("currency-style", GERMANY).decimalPlaces(2).groupThousands(true).negativeValueRed().build()
-            val dataStylesBuilder = DataStylesBuilder.create(GERMANY)
-            dataStylesBuilder.dateStyleBuilder().dateFormat(
-                DateTimeStyleFormat(
-                    LONG_YEAR, DASH,
-                    LONG_MONTH, DASH,
-                    LONG_DAY
-                )
-            )
+            val document = newSpreadsheetDocument()
+            val sheet = document.spreadsheetTables.first()
+            sheet.tableName = "MySheet"
 
-            val writer = OdsFactory.builder(getLogger("ods"), GERMANY).dataStyles(dataStylesBuilder.build()).build().createWriter()
-            val document = writer.document()
-            val sheet = document.addTable("MySheet")
+            val styles = document.contentDom.orCreateAutomaticStyles
 
-            val walker = sheet.walker
-            headers.forEach {
-                walker.setStringValue(it)
-                walker.setStyle(TableCellStyle.builder("heading-cell").fontWeightBold().build())
-                walker.next()
-            }
-            walker.nextRow()
+            val defaultStyle = styles.getStyle("Default", TableCell)
 
-            transactions.forEach {
-                walker.setDateValue(it.date.toDate())
-                walker.next()
-                walker.setDateValue(it.valuta.toDate())
-                walker.next()
-                walker.setCurrencyValue(it.amount.number, it.amount.currency.currencyCode)
-                walker.setDataStyle(currencyStyle)
-                walker.next()
-                walker.setStringValue(it.amount.currency.currencyCode)
-                walker.next()
-                walker.setStringValue(it.creditor.name)
-                walker.next()
-                walker.setStringValue(it.creditor.iban)
-                walker.next()
-                walker.setStringValue(it.debtor.name)
-                walker.next()
-                walker.setStringValue(it.debtor.iban)
-                walker.next()
-                walker.setStringValue(it.type)
-                walker.next()
-                walker.setStringValue(it.description)
-                walker.next()
-                walker.nextRow()
+            val headingStyle = styles.newStyle(TableCell)
+            headingStyle.setFontWeight("bold")
+
+            val headRow = sheet.getRowByIndex(0)
+            headRow.defaultCellStyle = headingStyle
+
+            headers.forEachIndexed { index, header ->
+                val cell = headRow.getCellByIndex(index)
+                cell.stringValue = header
+                cell.setStyle(headingStyle)
             }
 
-            writer.save(stream)
+            transactions.take(5).forEach {
+                val row = sheet.appendRow()
+                row.withCell(0) { stringValue = it.date.toString() }
+                row.withCell(1) { stringValue = it.valuta.toString() }
+                row.withCell(2) { stringValue = it.amount.toString() }
+                row.withCell(3) { stringValue = it.amount.currency.toString() }
+                row.withCell(4) { stringValue = it.creditor.name }
+                row.withCell(5) { stringValue = it.creditor.iban }
+                row.withCell(6) { stringValue = it.debtor.name }
+                row.withCell(7) { stringValue = it.debtor.iban }
+                row.withCell(8) { stringValue = it.type }
+                row.withCell(9) { stringValue = it.description }
+            }
+
+            document.save(stream)
         }
 
-        private fun LocalDate.toDate(): Date = Date.from(this.atStartOfDay(ZoneId.systemDefault()).toInstant())
+        private fun OdfStyle.setFontWeight(value: String) {
+            setProperty(FontWeight, value)
+            setProperty(FontWeightAsian, value)
+            setProperty(FontWeightComplex, value)
+        }
+
+        private fun OdfTableCell.setStyle(style: OdfStyle?) {
+            when (style) {
+                null -> {
+                    // For some reason, the style from the previous row is automatically applied to a cell.
+                    // Therefore, we reset the set style.
+                    val name = newName(TABLE, "style-name")
+                    odfElement.removeAttributeNS(name.uri, name.localName)
+                    return
+                }
+                else -> odfElement.styleName = style.styleNameAttribute
+            }
+        }
+
+        private fun <R> OdfTableRow.withCell(index: Int, style: OdfStyle? = null, block: OdfTableCell.() -> R): R =
+            with(getCellByIndex(index)) {
+                setStyle(style)
+                block()
+            }
     };
 
     abstract fun print(transactions: List<Transaction>, stream: OutputStream)
