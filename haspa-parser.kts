@@ -158,8 +158,8 @@ enum class OutputFormat {
 
             transactions.take(5).forEach {
                 val row = sheet.appendRow()
-                row.withCell(0) { stringValue = it.date.toString() }
-                row.withCell(1) { stringValue = it.valuta.toString() }
+                row.withCell(0) { setDateValue(it.date) }
+                row.withCell(1) { setDateValue(it.valuta) }
                 row.withCell(2) { stringValue = it.amount.toString() }
                 row.withCell(3) { stringValue = it.amount.currency.toString() }
                 row.withCell(4) { stringValue = it.creditor.name }
@@ -197,6 +197,10 @@ enum class OutputFormat {
                 setStyle(style)
                 block()
             }
+
+        private fun OdfTableCell.setDateValue(date: LocalDate) {
+            dateValue = GregorianCalendar(date.year, date.monthValue - 1, date.dayOfMonth)
+        }
     };
 
     abstract fun print(transactions: List<Transaction>, stream: OutputStream)
