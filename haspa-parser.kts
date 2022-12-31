@@ -151,9 +151,7 @@ enum class OutputFormat {
             headRow.defaultCellStyle = headingStyle
 
             headers.forEachIndexed { index, header ->
-                val cell = headRow.getCellByIndex(index)
-                cell.stringValue = header
-                cell.setStyle(headingStyle)
+                headRow.withCell(index, headingStyle) { stringValue = header }
             }
 
             transactions.take(5).forEach {
