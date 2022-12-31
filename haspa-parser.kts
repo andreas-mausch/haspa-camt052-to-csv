@@ -142,8 +142,6 @@ enum class OutputFormat {
 
             val styles = document.contentDom.orCreateAutomaticStyles
 
-            val defaultStyle = styles.getStyle("Default", TableCell)
-
             val headingStyle = styles.newStyle(TableCell)
             headingStyle.setFontWeight("bold")
 
