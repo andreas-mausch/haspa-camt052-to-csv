@@ -130,8 +130,8 @@ enum class OutputFormat {
     ODS {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
             val headers: Map<String, Long> = mapOf(
-                "Date" to 20,
-                "Valuta" to 20,
+                "Date" to 22,
+                "Valuta" to 22,
                 "Amount" to 25,
                 "Currency" to 17,
                 "Creditor" to 55,
