@@ -69,3 +69,14 @@ I've managed to do this on my MacBook Air M1:
 brew install --cask homebrew/cask-versions/zulu8
 JAVA_HOME=`/usr/libexec/java_home -v 1.8` ./haspa-parser.kts [...]
 ```
+
+# camt052 / camt053 File format specification
+
+I am not exactly sure what this file format is, but I think it is used in Europe only.
+
+See this [German Wikipedia article](https://de.wikipedia.org/wiki/Camt-Format).
+
+I found some pdfs describing the file formats:
+
+- [ebics.de](https://www.ebics.de/de/datenformate)
+- [ing.nl](https://www.ing.nl/media/ING%20Format%20Description%20CAMT052%20CAMT053%20-%20NL%20v4.0_tcm162-110479.pdf)

@@ -79,18 +79,6 @@ class Camt052File(inputStream: InputStream) {
     private val xpath = XPathFactory.newInstance().newXPath()
 
     fun parse(): List<Transaction> {
-        /*
-            camt looks like a great file format to me. not.
-            It has a lot of unreadable, cryptically shortened names.
-
-            https://www.bayernlb.de/internet/media/de/ir/downloads_1/zahlungsverkehr/formate_1/camt05X.pdf
-
-            BkToCstmrAcctRpt: Bank-to-Customer Account Report message
-            Rpt: Report
-            Ntry: Entry (wow)
-            Amt: Amount
-        */
-
         val entries = xpath.evaluate("/Document/BkToCstmrAcctRpt/Rpt/Ntry", document, NODESET) as NodeList
 
         return entries.asList().map { node ->
