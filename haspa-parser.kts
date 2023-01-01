@@ -110,9 +110,9 @@ class Camt052File(inputStream: InputStream) {
             val currency = amountElement.getAttribute("Ccy")
             val money = Money.of(if (debit) amount.negate() else amount, currency)
 
-            val creditor = element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")?.textContent?.normalizeSpace() ?: ""
+            val creditor = (element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm") ?: element("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))?.textContent?.normalizeSpace() ?: ""
             val creditorIban = element("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")?.textContent?.normalizeSpace()?.let { Iban.valueOf(it) }
-            val debtor = element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?.textContent?.normalizeSpace() ?: ""
+            val debtor = (element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm") ?: element("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))?.textContent?.normalizeSpace() ?: ""
             val debtorIban = element("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?.textContent?.normalizeSpace()?.let { Iban.valueOf(it) }
 
             val date = LocalDate.parse(element("BookgDt/Dt")!!.textContent)
@@ -180,7 +180,7 @@ enum class OutputFormat {
             sheet.getColumnByIndex(1).defaultCellStyle = dateStyle
             sheet.getColumnByIndex(2).defaultCellStyle = currencyStyle
 
-            transactions.take(5).forEach {
+            transactions.forEach {
                 val row = sheet.appendRow()
                 row.withCell(0) { setDateValue(it.date) }
                 row.withCell(1) { setDateValue(it.valuta) }
