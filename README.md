@@ -35,9 +35,10 @@ The ods libraries I've tried are flawed.
 
 - [SODS](https://github.com/miachm/SODS) offers no way to customize date and currency formats.
 - [fastods](https://github.com/jferard/fastods) is a bit buggy:
-  Global float style does not work, and red negative floats are supported (there are methods for it),
-  but the `-neg` style is not used by the cells.
-- [odftoolkit](https://github.com/tdf/odftoolkit) has almost no documentation and some weird inheritance of styles, but seems to be the best bet.
+  Global float style does not work [#242](https://github.com/jferard/fastods/issues/242),
+  and red negative floats are supported (there are [methods](https://github.com/jferard/fastods/blob/c8ed4ee9ba5abf190938c6506c87daf44ec016e1/fastods/src/main/java/com/github/jferard/fastods/datastyle/CurrencyStyleBuilder.java#L115) for it),
+  but the `-neg` style [is not used by the cells](https://github.com/jferard/fastods/blob/c8ed4ee9ba5abf190938c6506c87daf44ec016e1/fastods/src/main/java/com/github/jferard/fastods/datastyle/NumberStyleHelper.java#L71-86).
+- [odftoolkit](https://github.com/tdf/odftoolkit) has almost no documentation and some weird inheritance of styles, but seems to be the best bet, although it feels as complex as writing the XML directly.
 
 ```bash
 unzip -p output.ods content.xml | xmllint --format -
