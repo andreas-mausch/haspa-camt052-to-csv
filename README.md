@@ -7,6 +7,8 @@ This is a small command line tool to convert camt.052 from the Hamburger Sparkas
 
 # Run
 
+## CSV
+
 You can either run the script with a .zip containing xml files:
 
 ```shell-session
@@ -29,7 +31,15 @@ You can also run it via `docker`, but this will run into the problem mentioned b
 docker run -it --rm -v $PWD:/opt/script:ro holgerbrandl/kscript:4.1.1 /opt/script/haspa-parser.kts "/opt/script/*camt52Booked.ZIP" > /opt/script/output.csv
 ```
 
-# Debugging .ods
+## ODS
+
+You can also output the transactions as a .ods file for LibreCalc / Excel:
+
+```bash
+./haspa-parser.kts --output-format ods ./camt_1xxxxxxxxx_15.01.2018.xml > output.ods
+```
+
+### Debugging .ods
 
 The ods libraries I've tried are flawed.
 
