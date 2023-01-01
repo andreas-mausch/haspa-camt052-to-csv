@@ -70,6 +70,13 @@ brew install --cask homebrew/cask-versions/zulu8
 JAVA_HOME=`/usr/libexec/java_home -v 1.8` ./haspa-parser.kts [...]
 ```
 
+To build your own Docker image with the fixed Kotlin version, run this:
+
+```bash
+wget https://raw.githubusercontent.com/kscripting/kscript/master/misc/Dockerfile
+docker build --build-arg KSCRIPT_VERSION=4.1.1 --build-arg KOTLIN_VERSION=1.8.0 --tag my-kscript .
+```
+
 # camt052 / camt053 File format specification
 
 I am not exactly sure what this file format is, but I think it is used in Europe only.
