@@ -28,7 +28,7 @@ Date;Valuta;Amount;Currency;Creditor;Debtor;Type;Description
 You can also run it via `docker`, but this will run into the problem mentioned below.
 
 ```bash
-docker run --rm -v $PWD:/w:ro holgerbrandl/kscript:4.1.1 --silent haspa-parser.kts "*camt52Booked.ZIP" > output.csv
+docker run --rm -v $PWD:/w:ro holgerbrandl/kscript:4.1.1 --silent haspa-parser.kts 2016/camtPacket_1xxxxxxxxx_2016-*.zip > output.csv
 ```
 
 ## ODS
