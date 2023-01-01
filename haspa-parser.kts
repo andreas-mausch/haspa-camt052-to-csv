@@ -75,8 +75,8 @@ fun String.normalizeSpace(): String = normalizeSpace(this)
 
 class Camt052File(inputStream: InputStream) {
 
-    val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(inputStream)
-    val xpath = XPathFactory.newInstance().newXPath()
+    private val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(inputStream)
+    private val xpath = XPathFactory.newInstance().newXPath()
 
     fun parse(): List<Transaction> {
         /*
@@ -127,6 +127,7 @@ getLogManager().getLogger("").level = WARNING
 
 fun isZip(path: Path): Boolean = Tika().detect(path) == "application/zip"
 
+@Suppress("unused")
 enum class OutputFormat {
     CSV {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
