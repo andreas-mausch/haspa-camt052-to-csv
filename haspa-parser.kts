@@ -294,6 +294,7 @@ class HaspaParser : CliktCommand() {
                     }
                 }
             }
+            .distinct()
             .sortedBy { it.date }
 
         outputFormat.print(transactions, System.out)
