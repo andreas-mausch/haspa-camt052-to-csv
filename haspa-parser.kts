@@ -143,7 +143,18 @@ enum class OutputFormat {
     },
     ODS {
         override fun print(transactions: List<Transaction>, stream: OutputStream) {
-            val headers = listOf("Date", "Valuta", "Amount", "Currency", "Creditor", "Creditor IBAN", "Debtor", "Debtor IBAN", "Type", "Description")
+            val headers: Map<String, Long> = mapOf(
+                "Date" to 20,
+                "Valuta" to 20,
+                "Amount" to 25,
+                "Currency" to 17,
+                "Creditor" to 55,
+                "Creditor IBAN" to 55,
+                "Debtor" to 55,
+                "Debtor IBAN" to 55,
+                "Type" to 55,
+                "Description" to 100
+            )
 
             val document = newSpreadsheetDocument()
             val sheet = document.spreadsheetTables.first()
@@ -160,8 +171,9 @@ enum class OutputFormat {
             val headRow = sheet.getRowByIndex(0)
             headRow.defaultCellStyle = headingStyle
 
-            headers.forEachIndexed { index, header ->
-                headRow.withCell(index, headingStyle) { stringValue = header }
+            headers.entries.forEachIndexed { index, entry ->
+                sheet.getColumnByIndex(index).width = entry.value
+                headRow.withCell(index, headingStyle) { stringValue = entry.key }
             }
 
             sheet.getColumnByIndex(0).defaultCellStyle = dateStyle
@@ -190,6 +202,12 @@ enum class OutputFormat {
             setProperty(FontWeight, value)
             setProperty(FontWeightAsian, value)
             setProperty(FontWeightComplex, value)
+        }
+
+        private fun OdfStyle.setFontSize(value: String) {
+            setProperty(FontSize, value)
+            setProperty(FontSizeAsian, value)
+            setProperty(FontSizeComplex, value)
         }
 
         private fun OdfTableCell.setStyle(style: OdfStyle?) {
