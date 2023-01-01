@@ -27,6 +27,7 @@ import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument.newSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.table.OdfTableCell
 import org.odftoolkit.odfdom.doc.table.OdfTableRow
+import org.odftoolkit.odfdom.dom.OdfContentDom
 import org.odftoolkit.odfdom.dom.OdfDocumentNamespace.TABLE
 import org.odftoolkit.odfdom.dom.element.style.StyleTextPropertiesElement
 import org.odftoolkit.odfdom.dom.style.OdfStyleFamily.TableCell
@@ -151,30 +152,8 @@ enum class OutputFormat {
             val headingStyle = styles.newStyle(TableCell)
             headingStyle.setFontWeight("bold")
 
-            val dateStyle = OdfNumberDateStyle(document.contentDom, "yyyy-MM-dd", "numberDateStyle")
-            styles.appendChild(dateStyle)
-
-            val dateStyleTableCell = styles.newStyle(TableCell)
-            dateStyleTableCell.styleDataStyleNameAttribute = dateStyle.styleNameAttribute
-
-            val currencyStylePositive = OdfNumberCurrencyStyle(document.contentDom, "€", "#,##0.00 ", "numberCurrencyStylePositive")
-            val currencySymbolPositive = currencyStylePositive.newNumberCurrencySymbolElement()
-            currencySymbolPositive.textContent = "€"
-            currencyStylePositive.setCurrencyLocale("de", "DE")
-            styles.appendChild(currencyStylePositive)
-
-            val currencyStyle = OdfNumberCurrencyStyle(document.contentDom, "€", "-#,##0.00 ", "numberCurrencyStyle")
-            currencyStyle.setMapPositive(currencyStylePositive.styleNameAttribute)
-            val currencySymbol = currencyStyle.newNumberCurrencySymbolElement()
-            currencySymbol.textContent = "€"
-            currencyStyle.setCurrencyLocale("de", "DE")
-            val styleTextProperties = document.contentDom.newOdfElement(StyleTextPropertiesElement::class.java)
-            styleTextProperties.foColorAttribute = "#ff0000"
-            currencyStyle.appendChild(styleTextProperties)
-            styles.appendChild(currencyStyle)
-
-            val currencyStyleTableCell = styles.newStyle(TableCell)
-            currencyStyleTableCell.styleDataStyleNameAttribute = currencyStyle.styleNameAttribute
+            val dateStyle = createDateStyle(document.contentDom)
+            val currencyStyle = createCurrencyStyle(document.contentDom)
 
             val headRow = sheet.getRowByIndex(0)
             headRow.defaultCellStyle = headingStyle
@@ -183,9 +162,9 @@ enum class OutputFormat {
                 headRow.withCell(index, headingStyle) { stringValue = header }
             }
 
-            sheet.getColumnByIndex(0).defaultCellStyle = dateStyleTableCell
-            sheet.getColumnByIndex(1).defaultCellStyle = dateStyleTableCell
-            sheet.getColumnByIndex(2).defaultCellStyle = currencyStyleTableCell
+            sheet.getColumnByIndex(0).defaultCellStyle = dateStyle
+            sheet.getColumnByIndex(1).defaultCellStyle = dateStyle
+            sheet.getColumnByIndex(2).defaultCellStyle = currencyStyle
 
             transactions.take(5).forEach {
                 val row = sheet.appendRow()
@@ -232,6 +211,43 @@ enum class OutputFormat {
 
         private fun OdfTableCell.setDateValue(date: LocalDate) {
             dateValue = GregorianCalendar(date.year, date.monthValue - 1, date.dayOfMonth)
+        }
+
+        private fun createDateStyle(dom: OdfContentDom): OdfStyle {
+            val styles = dom.automaticStyles
+
+            val dateStyle = OdfNumberDateStyle(dom, "yyyy-MM-dd", "numberDateStyle")
+            styles.appendChild(dateStyle)
+
+            val dateStyleTableCell = styles.newStyle(TableCell)
+            dateStyleTableCell.styleDataStyleNameAttribute = dateStyle.styleNameAttribute
+
+            return dateStyleTableCell
+        }
+
+        private fun createCurrencyStyle(dom: OdfContentDom): OdfStyle {
+            val styles = dom.automaticStyles
+
+            val currencyStylePositive = OdfNumberCurrencyStyle(dom, "€","#,##0.00 ", "numberCurrencyStylePositive")
+            val currencySymbolPositive = currencyStylePositive.newNumberCurrencySymbolElement()
+            currencySymbolPositive.textContent = "€"
+            currencyStylePositive.setCurrencyLocale("de", "DE")
+            styles.appendChild(currencyStylePositive)
+
+            val currencyStyle = OdfNumberCurrencyStyle(dom, "€", "-#,##0.00 ", "numberCurrencyStyle")
+            currencyStyle.setMapPositive(currencyStylePositive.styleNameAttribute)
+            val currencySymbol = currencyStyle.newNumberCurrencySymbolElement()
+            currencySymbol.textContent = "€"
+            currencyStyle.setCurrencyLocale("de", "DE")
+            val styleTextProperties = dom.newOdfElement(StyleTextPropertiesElement::class.java)
+            styleTextProperties.foColorAttribute = "#ff0000"
+            currencyStyle.appendChild(styleTextProperties)
+            styles.appendChild(currencyStyle)
+
+            val currencyStyleTableCell = styles.newStyle(TableCell)
+            currencyStyleTableCell.styleDataStyleNameAttribute = currencyStyle.styleNameAttribute
+
+            return currencyStyleTableCell
         }
     };
 
