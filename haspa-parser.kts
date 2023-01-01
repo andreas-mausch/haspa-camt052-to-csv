@@ -8,6 +8,7 @@
 @file:DependsOn("org.slf4j:slf4j-nop:2.0.6")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:3.5.0")
 @file:DependsOn("org.odftoolkit:odfdom-java:0.11.0")
+@file:DependsOn("org.iban4j:iban4j:3.2.4-RELEASE")
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -22,6 +23,7 @@ import org.apache.commons.csv.CSVPrinter
 import org.apache.commons.io.input.CloseShieldInputStream
 import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
+import org.iban4j.Iban
 import org.javamoney.moneta.Money
 import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument.newSpreadsheetDocument
@@ -69,7 +71,7 @@ fun NodeList.asList(): List<Node> {
     return nodes
 }
 
-data class Party(val name: String, val iban: String)
+data class Party(val name: String, val iban: Iban?)
 data class Transaction(val date: LocalDate, val valuta: LocalDate, val amount: Money, val creditor: Party, val debtor: Party, val type: String, val description: String)
 
 fun String.normalizeSpace(): String = normalizeSpace(this)
@@ -109,9 +111,9 @@ class Camt052File(inputStream: InputStream) {
             val money = Money.of(if (debit) amount.negate() else amount, currency)
 
             val creditor = element("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")?.textContent?.normalizeSpace() ?: ""
-            val creditorIban = element("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")?.textContent?.normalizeSpace() ?: ""
+            val creditorIban = element("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")?.textContent?.normalizeSpace()?.let { Iban.valueOf(it) }
             val debtor = element("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?.textContent?.normalizeSpace() ?: ""
-            val debtorIban = element("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?.textContent?.normalizeSpace() ?: ""
+            val debtorIban = element("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?.textContent?.normalizeSpace()?.let { Iban.valueOf(it) }
 
             val date = LocalDate.parse(element("BookgDt/Dt")!!.textContent)
             val valuta = LocalDate.parse(element("ValDt/Dt")!!.textContent)
@@ -119,7 +121,7 @@ class Camt052File(inputStream: InputStream) {
             val type = element("AddtlNtryInf")?.textContent?.normalizeSpace() ?: ""
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent.normalizeSpace() }
 
-            Transaction(date, valuta, money, Party(creditor, creditorIban), Party(debtor, debtorIban), type, texts.getOrElse(0, { "" }))
+            Transaction(date, valuta, money, Party(creditor, creditorIban), Party(debtor, debtorIban), type, texts.getOrElse(0) { "" })
         }
     }
 }
@@ -174,9 +176,9 @@ enum class OutputFormat {
                 row.withCell(2) { setCurrencyValue(it.amount.number.doubleValueExact(), it.amount.currency.currencyCode) }
                 row.withCell(3) { stringValue = it.amount.currency.toString() }
                 row.withCell(4) { stringValue = it.creditor.name }
-                row.withCell(5) { stringValue = it.creditor.iban }
+                row.withCell(5) { stringValue = it.creditor.iban?.toFormattedString() ?: "" }
                 row.withCell(6) { stringValue = it.debtor.name }
-                row.withCell(7) { stringValue = it.debtor.iban }
+                row.withCell(7) { stringValue = it.debtor.iban?.toFormattedString() ?: "" }
                 row.withCell(8) { stringValue = it.type }
                 row.withCell(9) { stringValue = it.description }
             }
