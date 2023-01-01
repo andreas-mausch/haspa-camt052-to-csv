@@ -25,7 +25,6 @@ import org.apache.commons.lang3.StringUtils.normalizeSpace
 import org.apache.tika.Tika
 import org.iban4j.Iban
 import org.javamoney.moneta.Money
-import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument.newSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.table.OdfTableCell
 import org.odftoolkit.odfdom.doc.table.OdfTableRow
@@ -33,12 +32,10 @@ import org.odftoolkit.odfdom.dom.OdfContentDom
 import org.odftoolkit.odfdom.dom.OdfDocumentNamespace.TABLE
 import org.odftoolkit.odfdom.dom.element.style.StyleTextPropertiesElement
 import org.odftoolkit.odfdom.dom.style.OdfStyleFamily.TableCell
-import org.odftoolkit.odfdom.dom.style.props.OdfTextProperties
 import org.odftoolkit.odfdom.dom.style.props.OdfTextProperties.*
 import org.odftoolkit.odfdom.incubator.doc.number.OdfNumberCurrencyStyle
 import org.odftoolkit.odfdom.incubator.doc.number.OdfNumberDateStyle
 import org.odftoolkit.odfdom.incubator.doc.style.OdfStyle
-import org.odftoolkit.odfdom.pkg.OdfFileDom
 import org.odftoolkit.odfdom.pkg.OdfName.newName
 import org.w3c.dom.Element
 import org.w3c.dom.Node
