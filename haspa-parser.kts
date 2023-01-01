@@ -106,7 +106,7 @@ class Camt052File(inputStream: InputStream) {
             val type = element("AddtlNtryInf")?.textContent?.normalizeSpace() ?: ""
             val texts = (xpath.evaluate("NtryDtls/TxDtls/RmtInf/Ustrd", entry, NODESET) as NodeList).asList().map { it.textContent.normalizeSpace() }
 
-            Transaction(date, valuta, money, Party(creditor, creditorIban), Party(debtor, debtorIban), type, texts.getOrElse(0) { "" })
+            Transaction(date, valuta, money, Party(creditor, creditorIban), Party(debtor, debtorIban), type, texts.joinToString("; "))
         }
     }
 }
