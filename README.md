@@ -28,7 +28,7 @@ Date;Valuta;Amount;Currency;Creditor;Debtor;Type;Description
 You can also run it via `docker`, but this will run into the problem mentioned below.
 
 ```bash
-docker run -it --rm -v $PWD:/opt/script:ro holgerbrandl/kscript:4.1.1 --silent /opt/script/haspa-parser.kts "/opt/script/*camt52Booked.ZIP" > /opt/script/output.csv
+docker run --rm -v $PWD:/opt/script:ro holgerbrandl/kscript:4.1.1 --silent /opt/script/haspa-parser.kts "/opt/script/*camt52Booked.ZIP" > /opt/script/output.csv
 ```
 
 ## ODS
