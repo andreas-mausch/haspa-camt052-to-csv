@@ -28,10 +28,14 @@ import org.odftoolkit.odfdom.doc.OdfSpreadsheetDocument.newSpreadsheetDocument
 import org.odftoolkit.odfdom.doc.table.OdfTableCell
 import org.odftoolkit.odfdom.doc.table.OdfTableRow
 import org.odftoolkit.odfdom.dom.OdfDocumentNamespace.TABLE
+import org.odftoolkit.odfdom.dom.element.style.StyleTextPropertiesElement
 import org.odftoolkit.odfdom.dom.style.OdfStyleFamily.TableCell
+import org.odftoolkit.odfdom.dom.style.props.OdfTextProperties
 import org.odftoolkit.odfdom.dom.style.props.OdfTextProperties.*
+import org.odftoolkit.odfdom.incubator.doc.number.OdfNumberCurrencyStyle
 import org.odftoolkit.odfdom.incubator.doc.number.OdfNumberDateStyle
 import org.odftoolkit.odfdom.incubator.doc.style.OdfStyle
+import org.odftoolkit.odfdom.pkg.OdfFileDom
 import org.odftoolkit.odfdom.pkg.OdfName.newName
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -150,8 +154,27 @@ enum class OutputFormat {
             val dateStyle = OdfNumberDateStyle(document.contentDom, "yyyy-MM-dd", "numberDateStyle")
             styles.appendChild(dateStyle)
 
-            val dateStyle2 = styles.newStyle(TableCell)
-            dateStyle2.styleDataStyleNameAttribute = dateStyle.styleNameAttribute
+            val dateStyleTableCell = styles.newStyle(TableCell)
+            dateStyleTableCell.styleDataStyleNameAttribute = dateStyle.styleNameAttribute
+
+            val currencyStylePositive = OdfNumberCurrencyStyle(document.contentDom, "€", "#,##0.00 ", "numberCurrencyStylePositive")
+            val currencySymbolPositive = currencyStylePositive.newNumberCurrencySymbolElement()
+            currencySymbolPositive.textContent = "€"
+            currencyStylePositive.setCurrencyLocale("de", "DE")
+            styles.appendChild(currencyStylePositive)
+
+            val currencyStyle = OdfNumberCurrencyStyle(document.contentDom, "€", "-#,##0.00 ", "numberCurrencyStyle")
+            currencyStyle.setMapPositive(currencyStylePositive.styleNameAttribute)
+            val currencySymbol = currencyStyle.newNumberCurrencySymbolElement()
+            currencySymbol.textContent = "€"
+            currencyStyle.setCurrencyLocale("de", "DE")
+            val styleTextProperties = document.contentDom.newOdfElement(StyleTextPropertiesElement::class.java)
+            styleTextProperties.foColorAttribute = "#ff0000"
+            currencyStyle.appendChild(styleTextProperties)
+            styles.appendChild(currencyStyle)
+
+            val currencyStyleTableCell = styles.newStyle(TableCell)
+            currencyStyleTableCell.styleDataStyleNameAttribute = currencyStyle.styleNameAttribute
 
             val headRow = sheet.getRowByIndex(0)
             headRow.defaultCellStyle = headingStyle
@@ -160,14 +183,16 @@ enum class OutputFormat {
                 headRow.withCell(index, headingStyle) { stringValue = header }
             }
 
-            sheet.getColumnByIndex(0).defaultCellStyle = dateStyle2
-            sheet.getColumnByIndex(1).defaultCellStyle = dateStyle2
+            sheet.getColumnByIndex(0).defaultCellStyle = dateStyleTableCell
+            sheet.getColumnByIndex(1).defaultCellStyle = dateStyleTableCell
+            sheet.getColumnByIndex(2).defaultCellStyle = currencyStyleTableCell
 
             transactions.take(5).forEach {
                 val row = sheet.appendRow()
                 row.withCell(0) { setDateValue(it.date) }
                 row.withCell(1) { setDateValue(it.valuta) }
-                row.withCell(2) { stringValue = it.amount.toString() }
+                // TODO: Convert to double necessary? Really?
+                row.withCell(2) { setCurrencyValue(it.amount.number.doubleValueExact(), it.amount.currency.currencyCode) }
                 row.withCell(3) { stringValue = it.amount.currency.toString() }
                 row.withCell(4) { stringValue = it.creditor.name }
                 row.withCell(5) { stringValue = it.creditor.iban }
