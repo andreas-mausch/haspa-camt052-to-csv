@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use clap::Parser;
+use env_logger::Env;
+use log::{error, info};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -10,8 +12,10 @@ struct Args {
 }
 
 fn main() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
     let args = Args::parse();
-    println!("Files {:?}!", args.files);
+    info!("Files {:?}!", args.files);
 
     let non_existing_files: Vec<_> = args.files.iter().filter(|file| {
         let path = Path::new(file);
@@ -19,9 +23,9 @@ fn main() {
     }).collect();
 
     if !non_existing_files.is_empty() {
-        println!("File does not exist: {:?}", non_existing_files);
+        error!("File does not exist: {:?}", non_existing_files);
         return;
     }
 
-    println!("All files exist: {:?}", args.files)
+    info!("All files exist: {:?}", args.files)
 }
