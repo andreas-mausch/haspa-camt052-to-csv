@@ -6,9 +6,6 @@ use std::path::Path;
 use clap::Parser;
 use env_logger::Env;
 use log::{debug, error, info, warn};
-use sxd_document::parser;
-use sxd_xpath::{Context, evaluate_xpath, Factory, Value};
-use sxd_xpath::nodeset::Nodeset;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -17,42 +14,24 @@ struct Args {
     files: Vec<String>,
 }
 
-trait ValueExt {
-    fn to_nodeset(&self) -> Result<&Nodeset, &'static str>;
-}
-
-impl ValueExt for Value<'_> {
-    fn to_nodeset(&self) -> Result<&Nodeset, &'static str> {
-        match self {
-            Value::Nodeset(nodes) => Ok(nodes),
-            _ => Err("Value is not a nodeset: {:?}")
-        }
-    }
-}
-
 fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
     let mut xml_content = String::new();
     reader.read_to_string(&mut xml_content)?;
 
-    let package = parser::parse(&xml_content)?;
-    let document = package.as_document();
+    let document = roxmltree::Document::parse(&xml_content)?;
+    let document_element = document.root().children().find(|child| {
+        child.is_element() && child.tag_name().name() == "Document"
+    }).ok_or("Could not find element 'Document'")?;
 
-    // First way: Set the namespace explicitly. Bulky.
-    let factory = Factory::new();
-    let xpath = factory.build("/ns:Document")?.ok_or("Could not compile XPath")?;
-    let mut context = Context::new();
-    // We need to define a namespace ourselves and use it.
-    // There don't seem to be support for the default namespace.
-    // See also here: https://github.com/shepmaster/sxd-xpath/issues/133
-    context.set_namespace("ns", "urn:iso:std:iso:20022:tech:xsd:camt.052.001.02");
-    let value1 = xpath.evaluate(&context, document.root())
-        .expect("XPath evaluation failed");
+    info!(
+        "Children: {:#?}",
+        document.root().children()
+    );
 
-    // Second way: Get the value by local-name only. Longer xpath expression.
-    let value2 = evaluate_xpath(&document, "/*[local-name() = 'Document']")?;
-
-    let entries = value2.to_nodeset()?;
-    info!("Entries found: {:?}", entries);
+    info!(
+        "Document element: {:#?}",
+        document_element
+    );
 
     Ok(())
 }

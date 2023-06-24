@@ -8,7 +8,5 @@ clap = { version = "4.3.5", features = ["derive"] }
 env_logger = "0.10.0"
 log = "0.4.19"
 roxmltree = "0.18.0"
-sxd-document = "0.3.2"
-sxd-xpath = "0.4.2"
 tree_magic_mini = "3.0.3"
 zip = "0.6.6"
