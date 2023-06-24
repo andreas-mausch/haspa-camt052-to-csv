@@ -1,8 +1,10 @@
+use std::error::Error;
+use std::fs::File;
 use std::path::Path;
 
 use clap::Parser;
 use env_logger::Env;
-use log::{error, info};
+use log::{debug, error, info};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -11,8 +13,18 @@ struct Args {
     files: Vec<String>,
 }
 
+fn read_zip(path: &Path) -> Result<(), Box<dyn Error>> {
+    let file = File::open(path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+    for index in 0..archive.len() {
+        let file_in_archive = archive.by_index(index)?;
+        debug!("File in archive: {:?}", file_in_archive.enclosed_name());
+    }
+    Ok(())
+}
+
 fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
 
     let args = Args::parse();
     info!("Files {:?}!", args.files);
@@ -30,10 +42,11 @@ fn main() {
     paths.iter().for_each(|path| {
         match tree_magic_mini::from_filepath(path) {
             Some("application/zip") => {
-                println!("Zip file: {:?}", path)
+                info!("Zip file: {:?}", path);
+                read_zip(path);
             }
             _ => {
-                println!("No zip file: {:?}", path)
+                info!("No zip file: {:?}", path);
             }
         }
     });
