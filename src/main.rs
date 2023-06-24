@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 use clap::Parser;
@@ -17,8 +18,11 @@ fn read_zip(path: &Path) -> Result<(), Box<dyn Error>> {
     let file = File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
     for index in 0..archive.len() {
-        let file_in_archive = archive.by_index(index)?;
-        debug!("File in archive: {:?}", file_in_archive.enclosed_name());
+        let mut file_in_archive = archive.by_index(index)?;
+        debug!("File in archive: {:?}", file_in_archive.name());
+        let mut content = String::new();
+        file_in_archive.read_to_string(&mut content)?;
+        debug!("Content: {:?}", content);
     }
     Ok(())
 }
