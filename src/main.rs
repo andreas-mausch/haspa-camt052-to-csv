@@ -16,14 +16,21 @@ struct Args {
 }
 
 trait XmlDocumentFinder {
-    fn child_by_name(&self, name: &'static str) -> Option<Node>;
+    fn find(&self, name: &str) -> Option<Node>;
+    fn filter(&self, name: &str) -> Vec<Node>;
 }
 
 impl XmlDocumentFinder for Node<'_, '_> {
-    fn child_by_name(&self, name: &str) -> Option<Node> {
+    fn find(&self, name: &str) -> Option<Node> {
         self.children().find(|child| {
             child.is_element() && child.tag_name().name() == name
-        }).map(|e| e.clone())
+        })
+    }
+
+    fn filter(&self, name: &str) -> Vec<Node> {
+        self.children().filter(|child| {
+            child.is_element() && child.tag_name().name() == name
+        }).collect()
     }
 }
 
@@ -33,7 +40,8 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
 
     let document = roxmltree::Document::parse(&xml_content)?;
     let root = document.root();
-    let document_element = root.child_by_name("Document").ok_or("Could not find element 'Document'")?;
+    let document_element = root.find("Document").ok_or("Could not find element 'Document'")?;
+    let document_elements = root.filter("Document");
 
     info!(
         "Children: {:#?}",
@@ -41,8 +49,9 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
     );
 
     info!(
-        "Document element: {:#?}",
-        document_element
+        "Document element: {:#?} {:#?}",
+        document_element,
+        document_elements
     );
 
     Ok(())
