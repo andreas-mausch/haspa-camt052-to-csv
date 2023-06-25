@@ -6,7 +6,7 @@ use std::path::Path;
 use clap::Parser;
 use env_logger::{Builder, Env};
 use log::{debug, error, info, warn};
-use roxmltree::Node;
+use roxmltree::{Children, Node};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -22,15 +22,31 @@ trait XmlDocumentFinder {
 
 impl XmlDocumentFinder for Node<'_, '_> {
     fn find(&self, name: &str) -> Option<Node> {
-        self.children().find(|child| {
-            child.is_element() && child.tag_name().name() == name
-        })
+        let mut node = Some(*self);
+        name.split('/').for_each(|n| {
+            node = node
+                .and_then(|it|
+                    it.children().find(|child|
+                        child.is_element() && child.tag_name().name() == n))
+        });
+        node
     }
 
     fn filter(&self, name: &str) -> Vec<Node> {
-        self.children().filter(|child| {
-            child.is_element() && child.tag_name().name() == name
-        }).collect()
+        let mut nodes = vec![*self];
+        name.split('/').for_each(|n| {
+            nodes = nodes
+                .iter()
+                .map(|node| node.children())
+                .flat_map(|child|
+                    child
+                        .filter(|node|
+                            node.is_element() && node.tag_name().name() == n)
+                        .collect::<Vec<Node>>()
+                )
+                .collect();
+        });
+        nodes
     }
 }
 
@@ -42,6 +58,7 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
     let root = document.root();
     let document_element = root.find("Document").ok_or("Could not find element 'Document'")?;
     let document_elements = root.filter("Document");
+    let ntry_element = root.filter("Document/BkToCstmrAcctRpt/Rpt/Ntry");
 
     info!(
         "Children: {:#?}",
@@ -49,9 +66,10 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
     );
 
     info!(
-        "Document element: {:#?} {:#?}",
+        "Document element: {:#?} {:#?} {:#?}",
         document_element,
-        document_elements
+        document_elements,
+        ntry_element
     );
 
     Ok(())
