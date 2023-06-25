@@ -4,7 +4,7 @@ use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use clap::Parser;
-use env_logger::Env;
+use env_logger::{Builder, Env};
 use log::{debug, error, info, warn};
 use roxmltree::Node;
 
@@ -20,7 +20,7 @@ trait XmlDocumentFinder {
 }
 
 impl XmlDocumentFinder for Node<'_, '_> {
-    fn child_by_name(&self, name: &'static str) -> Option<Node> {
+    fn child_by_name(&self, name: &str) -> Option<Node> {
         self.children().find(|child| {
             child.is_element() && child.tag_name().name() == name
         }).map(|e| e.clone())
@@ -84,7 +84,7 @@ fn read_zip<R: Read + Seek>(path: &Path, reader: R) -> Result<(), Box<dyn Error>
 }
 
 fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    Builder::from_env(Env::default().default_filter_or("debug")).init();
 
     let args = Args::parse();
     info!("Files {:?}!", args.files);
