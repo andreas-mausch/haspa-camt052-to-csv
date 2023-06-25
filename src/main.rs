@@ -6,6 +6,7 @@ use std::path::Path;
 use clap::Parser;
 use env_logger::Env;
 use log::{debug, error, info, warn};
+use roxmltree::Node;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -14,18 +15,29 @@ struct Args {
     files: Vec<String>,
 }
 
+trait XmlDocumentFinder {
+    fn child_by_name(&self, name: &'static str) -> Option<Node>;
+}
+
+impl XmlDocumentFinder for Node<'_, '_> {
+    fn child_by_name(&self, name: &'static str) -> Option<Node> {
+        self.children().find(|child| {
+            child.is_element() && child.tag_name().name() == name
+        }).map(|e| e.clone())
+    }
+}
+
 fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
     let mut xml_content = String::new();
     reader.read_to_string(&mut xml_content)?;
 
     let document = roxmltree::Document::parse(&xml_content)?;
-    let document_element = document.root().children().find(|child| {
-        child.is_element() && child.tag_name().name() == "Document"
-    }).ok_or("Could not find element 'Document'")?;
+    let root = document.root();
+    let document_element = root.child_by_name("Document").ok_or("Could not find element 'Document'")?;
 
     info!(
         "Children: {:#?}",
-        document.root().children()
+        root.children()
     );
 
     info!(
