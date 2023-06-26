@@ -10,3 +10,10 @@ log = "0.4.19"
 roxmltree = "0.18.0"
 tree_magic_mini = "3.0.3"
 zip = "0.6.6"
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = "abort"     # Abort on panic
+strip = true        # Strip symbols from binary*
