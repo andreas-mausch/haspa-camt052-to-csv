@@ -24,21 +24,16 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
 
     let document = roxmltree::Document::parse(&xml_content)?;
     let root = document.root();
-    let document_element = root.find("Document").ok_or("Could not find element 'Document'")?;
-    let document_elements = root.filter("Document");
-    let ntry_element = root.filter("Document/BkToCstmrAcctRpt/Rpt/Ntry");
+    let entries = root.filter("Document/BkToCstmrAcctRpt/Rpt/Ntry");
 
-    info!(
-        "Children: {:#?}",
-        root.children()
-    );
+    // info!("entries {:?}", entries);
 
-    info!(
-        "Document element: {:#?} {:#?} {:#?}",
-        document_element,
-        document_elements,
-        ntry_element
-    );
+    entries.iter().for_each(|entry| {
+        let debit = entry.find("CdtDbtInd").and_then(|it| it.text()) == Some("DBIT");
+        let amount = entry.find("Amt").and_then(|it| it.text());
+        let currency = entry.find("Amt").and_then(|it| it.attribute("Ccy"));
+        info!("Debit {:?}, Amount {:?} {:?}", debit, amount, currency);
+    });
 
     Ok(())
 }
