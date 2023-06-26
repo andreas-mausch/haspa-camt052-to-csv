@@ -3,9 +3,14 @@ use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
 use std::path::Path;
 
+use chrono::{NaiveDate, ParseResult};
 use clap::Parser;
 use env_logger::{Builder, Env};
+use iban::Iban;
 use log::{debug, error, info, warn};
+use rust_decimal::Decimal;
+use rusty_money::{iso, Money};
+use rusty_money::iso::Currency;
 
 use crate::xml_document_finder::XmlDocumentFinder;
 
@@ -18,7 +23,28 @@ struct Args {
     files: Vec<String>,
 }
 
-fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
+#[derive(Debug)]
+struct Party {
+    name: String,
+    iban: Option<Iban>,
+}
+
+#[derive(Debug)]
+struct Transaction<'a> {
+    date: NaiveDate,
+    valuta: NaiveDate,
+    amount: Money<'a, Currency>,
+    creditor: Party,
+    debtor: Party,
+    transaction_type: String,
+    description: String,
+}
+
+fn parse_iso_date(string: &str) -> ParseResult<NaiveDate> {
+    NaiveDate::parse_from_str(string, "%Y-%m-%d")
+}
+
+fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
     let mut xml_content = String::new();
     reader.read_to_string(&mut xml_content)?;
 
@@ -28,17 +54,68 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
 
     if entries.is_empty() {
         warn!("No entries found");
-        return Ok(());
+        return Ok(vec![]);
     }
 
-    entries.iter().for_each(|entry| {
+    let transactions: Vec<_> = entries.iter().map(|entry| -> Result<Transaction, Box<dyn Error>> {
+        let date = entry.find("BookgDt/Dt")
+            .ok_or::<Box<dyn Error>>("No node 'BookgDt/Dt'".into())
+            .and_then(|node| node.text().ok_or("No text in 'BookgDt/Dt' node".into()))
+            .and_then(|text| parse_iso_date(text).map_err(|it| it.into()))?;
+        let valuta = entry.find("ValDt/Dt")
+            .ok_or::<Box<dyn Error>>("No node 'ValDt/Dt'".into())
+            .and_then(|node| node.text().ok_or("No text in 'ValDt/Dt' node".into()))
+            .and_then(|text| parse_iso_date(text).map_err(|it| it.into()))?;
         let debit = entry.find("CdtDbtInd").and_then(|it| it.text()) == Some("DBIT");
-        let amount = entry.find("Amt").and_then(|it| it.text());
-        let currency = entry.find("Amt").and_then(|it| it.attribute("Ccy"));
-        info!("Debit {:?}, Amount {:?} {:?}", debit, amount, currency);
-    });
+        let amount = entry.find("Amt")
+            .and_then(|it| it.text())
+            .ok_or::<Box<dyn Error>>("No text in 'Amt' node".into())?;
+        let currency = entry.find("Amt")
+            .and_then(|it| it.attribute("Ccy"))
+            .ok_or::<Box<dyn Error>>("No text in 'Amt[Ccy]' attribute".into())?;
+        let creditor = entry.find("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")
+            .or(entry.find("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))
+            .and_then(|it| it.text())
+            .ok_or::<Box<dyn Error>>("No creditor found".into())?;
+        let creditor_iban = entry.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
+            .and_then(|it| it.text())
+            .and_then(|iban| iban.parse::<Iban>().ok());
+        let debtor = entry.find("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")
+            .or(entry.find("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))
+            .and_then(|it| it.text())
+            .ok_or::<Box<dyn Error>>("No debtor found".into())?;
+        let debtor_iban = entry.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
+            .and_then(|it| it.text())
+            .and_then(|iban| iban.parse::<Iban>().ok());
+        let transaction_type = entry.find("AddtlNtryInf")
+            .and_then(|it| it.text())
+            .ok_or::<Box<dyn Error>>("No transaction type found".into())?;
+        let description = entry.filter("NtryDtls/TxDtls/RmtInf/Ustrd")
+            .iter().map(|node| node.text().unwrap_or(""))
+            .collect::<Vec<_>>().join("; ");
 
-    Ok(())
+        // rusty_money sets the locale on the currency EUR
+        // and expects it to be formatted like
+        // 1.000,00 and not like 1,000.00
+        // https://github.com/varunsrin/rusty_money/issues/61
+        // That's why we need to convert the String to a Decimal first, and the call rusty_money.
+        // Otherwise, we could use Money::from_str() directly.
+        let money_decimal = amount.parse::<Decimal>()
+            .map(|amount| if debit { -amount } else { amount })?;
+        let money = Money::from_decimal(money_decimal,
+                                        iso::find(currency).ok_or("Currency not found")?);
+
+        Ok(Transaction {
+            date,
+            valuta,
+            amount: money,
+            creditor: Party { name: creditor.to_string(), iban: creditor_iban },
+            debtor: Party { name: debtor.to_string(), iban: debtor_iban },
+            transaction_type: transaction_type.to_string(),
+            description,
+        })
+    }).collect();
+    transactions.into_iter().collect()
 }
 
 fn process_file<R: Read + Seek>(path: &Path, read: R) -> Result<(), Box<dyn Error>> {
@@ -54,7 +131,9 @@ fn process_file<R: Read + Seek>(path: &Path, read: R) -> Result<(), Box<dyn Erro
         }
         "application/xml" => {
             info!("Processing XML file: {:?}", path);
-            process_xml(reader)
+            let transactions = process_xml(reader);
+            error!("{:#?}", transactions);
+            transactions.map(|x| ())
         }
         _ => {
             warn!("File found, but it is not ZIP or XML, skipping: {:?}", path);
