@@ -15,4 +15,4 @@ RUN cargo build --release --target x86_64-unknown-linux-musl
 
 FROM scratch AS runtime
 COPY --from=build /rust/target/x86_64-unknown-linux-musl/release/haspa-camt052-to-csv /usr/local/bin/
-CMD ["/usr/local/bin/haspa-camt052-to-csv"]
+ENTRYPOINT ["/usr/local/bin/haspa-camt052-to-csv"]
