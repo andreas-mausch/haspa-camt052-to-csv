@@ -26,7 +26,10 @@ fn process_xml<R: Read>(mut reader: R) -> Result<(), Box<dyn Error>> {
     let root = document.root();
     let entries = root.filter("Document/BkToCstmrAcctRpt/Rpt/Ntry");
 
-    // info!("entries {:?}", entries);
+    if entries.is_empty() {
+        warn!("No entries found");
+        return Ok(());
+    }
 
     entries.iter().for_each(|entry| {
         let debit = entry.find("CdtDbtInd").and_then(|it| it.text()) == Some("DBIT");
