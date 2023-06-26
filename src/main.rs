@@ -50,6 +50,7 @@ fn process_file<R: Read + Seek>(path: &Path, read: R) -> Result<(), Box<dyn Erro
             read_zip(path, reader)
         }
         "application/xml" => {
+            info!("Processing XML file: {:?}", path);
             process_xml(reader)
         }
         _ => {
