@@ -2,6 +2,7 @@ use roxmltree::Node;
 
 pub trait XmlDocumentFinder {
     fn find(&self, name: &str) -> Option<Node>;
+    fn find_into<T>(&self, name: &str, convert: impl Fn(&str) -> Option<T>) -> Option<T>;
     fn filter(&self, name: &str) -> Vec<Node>;
 }
 
@@ -15,6 +16,12 @@ impl XmlDocumentFinder for Node<'_, '_> {
                         child.is_element() && child.tag_name().name() == n))
         });
         node
+    }
+
+    fn find_into<T>(&self, name: &str, convert: impl Fn(&str) -> Option<T>) -> Option<T> {
+        self.find(name)
+            .and_then(|node| node.text())
+            .and_then(|text| convert(text))
     }
 
     fn filter(&self, name: &str) -> Vec<Node> {

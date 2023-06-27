@@ -4,7 +4,7 @@ use std::io;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use chrono::{NaiveDate, ParseResult};
+use chrono::NaiveDate;
 use clap::Parser;
 use csv::WriterBuilder;
 use env_logger::{Builder, Env};
@@ -15,12 +15,14 @@ use rust_decimal::Decimal;
 use rusty_money::{iso, Money};
 use rusty_money::iso::Currency;
 use serde::Serialize;
+use crate::date_parser::parse_iso_date;
 
 use crate::rusty_money_serde::MyMoney;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 mod xml_document_finder;
 mod rusty_money_serde;
+mod date_parser;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -53,10 +55,8 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
     type Error = Box<dyn Error>;
 
     fn try_from(value: &Node) -> Result<Self, Self::Error> {
-        let date = value.find("BookgDt/Dt")
-            .ok_or::<Box<dyn Error>>("No node 'BookgDt/Dt'".into())
-            .and_then(|node| node.text().ok_or("No text in 'BookgDt/Dt' node".into()))
-            .and_then(|text| parse_iso_date(text).map_err(|it| it.into()))?;
+        let date = value.find_into("BookgDt/Dt", |text| parse_iso_date(text).ok())
+            .ok_or::<Box<dyn Error>>("No node 'BookgDt/Dt'".into())?;
         let valuta = value.find("ValDt/Dt")
             .ok_or::<Box<dyn Error>>("No node 'ValDt/Dt'".into())
             .and_then(|node| node.text().ok_or("No text in 'ValDt/Dt' node".into()))
@@ -116,10 +116,6 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
             description,
         })
     }
-}
-
-fn parse_iso_date(string: &str) -> ParseResult<NaiveDate> {
-    NaiveDate::parse_from_str(string, "%Y-%m-%d")
 }
 
 fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
