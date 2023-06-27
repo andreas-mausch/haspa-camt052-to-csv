@@ -80,22 +80,28 @@ fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<d
         let creditor = entry.find("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")
             .or(entry.find("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))
             .and_then(|it| it.text())
+            .map(|node| node.trim())
             .ok_or::<Box<dyn Error>>("No creditor found".into())?;
         let creditor_iban = entry.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
             .and_then(|it| it.text())
+            .map(|node| node.trim())
             .and_then(|iban| iban.parse::<Iban>().ok());
         let debtor = entry.find("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")
             .or(entry.find("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))
             .and_then(|it| it.text())
+            .map(|node| node.trim())
             .ok_or::<Box<dyn Error>>("No debtor found".into())?;
         let debtor_iban = entry.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
             .and_then(|it| it.text())
+            .map(|node| node.trim())
             .and_then(|iban| iban.parse::<Iban>().ok());
         let transaction_type = entry.find("AddtlNtryInf")
             .and_then(|it| it.text())
+            .map(|node| node.trim())
             .ok_or::<Box<dyn Error>>("No transaction type found".into())?;
         let description = entry.filter("NtryDtls/TxDtls/RmtInf/Ustrd")
             .iter().map(|node| node.text().unwrap_or(""))
+            .map(|node| node.trim())
             .collect::<Vec<_>>().join("; ");
 
         // rusty_money sets the locale on the currency EUR
