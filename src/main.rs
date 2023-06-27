@@ -10,6 +10,7 @@ use csv::WriterBuilder;
 use env_logger::{Builder, Env};
 use iban::Iban;
 use log::{debug, error, info, warn};
+use roxmltree::Node;
 use rust_decimal::Decimal;
 use rusty_money::{iso, Money};
 use rusty_money::iso::Currency;
@@ -48,62 +49,48 @@ struct Transaction<'a> {
     description: String,
 }
 
-fn parse_iso_date(string: &str) -> ParseResult<NaiveDate> {
-    NaiveDate::parse_from_str(string, "%Y-%m-%d")
-}
+impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
+    type Error = Box<dyn Error>;
 
-fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
-    let mut xml_content = String::new();
-    reader.read_to_string(&mut xml_content)?;
-
-    let document = roxmltree::Document::parse(&xml_content)?;
-    let root = document.root();
-    let entries = root.filter("Document/BkToCstmrAcctRpt/Rpt/Ntry");
-
-    if entries.is_empty() {
-        warn!("No entries found");
-        return Ok(vec![]);
-    }
-
-    let transactions: Vec<_> = entries.iter().map(|entry| -> Result<Transaction, Box<dyn Error>> {
-        let date = entry.find("BookgDt/Dt")
+    fn try_from(value: &Node) -> Result<Self, Self::Error> {
+        let date = value.find("BookgDt/Dt")
             .ok_or::<Box<dyn Error>>("No node 'BookgDt/Dt'".into())
             .and_then(|node| node.text().ok_or("No text in 'BookgDt/Dt' node".into()))
             .and_then(|text| parse_iso_date(text).map_err(|it| it.into()))?;
-        let valuta = entry.find("ValDt/Dt")
+        let valuta = value.find("ValDt/Dt")
             .ok_or::<Box<dyn Error>>("No node 'ValDt/Dt'".into())
             .and_then(|node| node.text().ok_or("No text in 'ValDt/Dt' node".into()))
             .and_then(|text| parse_iso_date(text).map_err(|it| it.into()))?;
-        let debit = entry.find("CdtDbtInd").and_then(|it| it.text()) == Some("DBIT");
-        let amount = entry.find("Amt")
+        let debit = value.find("CdtDbtInd").and_then(|it| it.text()) == Some("DBIT");
+        let amount = value.find("Amt")
             .and_then(|it| it.text())
             .ok_or::<Box<dyn Error>>("No text in 'Amt' node".into())?;
-        let currency = entry.find("Amt")
+        let currency = value.find("Amt")
             .and_then(|it| it.attribute("Ccy"))
             .ok_or::<Box<dyn Error>>("No text in 'Amt[Ccy]' attribute".into())?;
-        let creditor = entry.find("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")
-            .or(entry.find("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))
+        let creditor = value.find("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")
+            .or(value.find("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .ok_or::<Box<dyn Error>>("No creditor found".into())?;
-        let creditor_iban = entry.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
+        let creditor_iban = value.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .and_then(|iban| iban.parse::<Iban>().ok());
-        let debtor = entry.find("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")
-            .or(entry.find("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))
+        let debtor = value.find("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")
+            .or(value.find("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .ok_or::<Box<dyn Error>>("No debtor found".into())?;
-        let debtor_iban = entry.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
+        let debtor_iban = value.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .and_then(|iban| iban.parse::<Iban>().ok());
-        let transaction_type = entry.find("AddtlNtryInf")
+        let transaction_type = value.find("AddtlNtryInf")
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .ok_or::<Box<dyn Error>>("No transaction type found".into())?;
-        let description = entry.filter("NtryDtls/TxDtls/RmtInf/Ustrd")
+        let description = value.filter("NtryDtls/TxDtls/RmtInf/Ustrd")
             .iter().map(|node| node.text().unwrap_or(""))
             .map(|node| node.trim())
             .collect::<Vec<_>>().join("; ");
@@ -128,7 +115,27 @@ fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<d
             transaction_type: transaction_type.to_string(),
             description,
         })
-    }).collect();
+    }
+}
+
+fn parse_iso_date(string: &str) -> ParseResult<NaiveDate> {
+    NaiveDate::parse_from_str(string, "%Y-%m-%d")
+}
+
+fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
+    let mut xml_content = String::new();
+    reader.read_to_string(&mut xml_content)?;
+
+    let document = roxmltree::Document::parse(&xml_content)?;
+    let root = document.root();
+    let entries = root.filter("Document/BkToCstmrAcctRpt/Rpt/Ntry");
+
+    if entries.is_empty() {
+        warn!("No entries found");
+        return Ok(vec![]);
+    }
+
+    let transactions: Vec<_> = entries.iter().map(|entry| entry.try_into()).collect();
     transactions.into_iter().collect()
 }
 
