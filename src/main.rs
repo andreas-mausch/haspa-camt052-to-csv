@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
+use std::io;
+use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use chrono::{NaiveDate, ParseResult};
@@ -25,6 +26,9 @@ mod rusty_money_serde;
 struct Args {
     #[structopt(index = 1, required = true)]
     files: Vec<String>,
+
+    #[arg(short, long, default_value = "-")]
+    output: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -201,5 +205,8 @@ fn main() {
     }).collect();
 
     let csv_output = to_csv(transactions).expect("Cannot serialise to .csv");
-    info!("CSV Output:\n\n{}", csv_output);
+    // Replace File::create() by File::create_new() once it is stable
+    let mut output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
+
+    writeln!(output_stream, "{}", csv_output).unwrap();
 }
