@@ -108,7 +108,7 @@ fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<d
         // and expects it to be formatted like
         // 1.000,00 and not like 1,000.00
         // https://github.com/varunsrin/rusty_money/issues/61
-        // That's why we need to convert the String to a Decimal first, and the call rusty_money.
+        // That's why we need to convert the String to a Decimal first, and then call rusty_money.
         // Otherwise, we could use Money::from_str() directly.
         let money_decimal = amount.parse::<Decimal>()
             .map(|amount| if debit { -amount } else { amount })?;
