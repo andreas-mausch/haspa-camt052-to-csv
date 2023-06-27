@@ -1,6 +1,5 @@
 use std::error::Error;
 
-use chrono::ParseError;
 use roxmltree::Node;
 
 use crate::date_parser::IsoDate;
@@ -27,7 +26,7 @@ impl XmlDocumentFinder for Node<'_, '_> {
         self.find(name)
             .and_then(|node| node.text())
             .ok_or::<Box<dyn Error>>(format!("No node '{}'", name).into())
-            .and_then(|x| x.try_into().map_err(|e: ParseError| e.into()))
+            .and_then(|x| x.try_into().map_err(|e: <IsoDate as TryFrom<&str>>::Error| e.into()))
     }
 
     fn filter(&self, name: &str) -> Vec<Node> {
