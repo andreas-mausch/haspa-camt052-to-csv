@@ -174,9 +174,8 @@ fn main() {
 
     let args = Args::parse();
     info!("Files {:?}!", args.files);
-    let paths: Vec<_> = args.files.iter().map(|file| Path::new(file)).collect();
-
-    let non_existing_files: Vec<_> = paths.iter().filter(|path| !path.exists() || !path.is_file()).collect();
+    let paths = args.files.iter().map(|file| Path::new(file)).collect::<Vec<_>>();
+    let non_existing_files = paths.iter().filter(|path| !path.exists() || !path.is_file()).collect::<Vec<_>>();
 
     if !non_existing_files.is_empty() {
         error!("File does not exist: {:?}", non_existing_files);
