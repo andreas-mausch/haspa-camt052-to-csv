@@ -159,6 +159,16 @@ fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transactio
     Ok(transactions)
 }
 
+fn to_csv(transactions: Vec<Transaction>) -> Result<String, Box<dyn Error>> {
+    let mut writer = WriterBuilder::new().has_headers(true).delimiter(b';').from_writer(vec![]);
+    writer.serialize(("Date", "Valuta", "Amount", "Creditor Name", "Creditor IBAN", "Debtor Name", "Debtor IBAN", "Transaction Type", "Description"))?;
+    transactions.iter().try_for_each(|transaction| {
+        writer.serialize(transaction)
+    })?;
+    writer.flush()?;
+    Ok(String::from_utf8(writer.into_inner()?)?)
+}
+
 fn main() {
     Builder::from_env(Env::default().default_filter_or("debug")).init();
 
@@ -185,12 +195,6 @@ fn main() {
             .expect("Could not read file")
     }).collect();
 
-    let mut writer = WriterBuilder::new().has_headers(true).delimiter(b';').from_writer(vec![]);
-    writer.serialize(("Date", "Valuta", "Amount", "Creditor Name", "Creditor IBAN", "Debtor Name", "Debtor IBAN", "Transaction Type", "Description")).unwrap();
-    transactions.iter().for_each(|transaction| {
-        writer.serialize(transaction).unwrap();
-    });
-    writer.flush().expect("Cannot flush writer");
-    let csv_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
+    let csv_output = to_csv(transactions).expect("Cannot serialise to .csv");
     info!("CSV Output:\n\n{}", csv_output);
 }
