@@ -5,7 +5,7 @@ use std::path::Path;
 
 use chrono::{NaiveDate, ParseResult};
 use clap::Parser;
-use csv::Writer;
+use csv::WriterBuilder;
 use env_logger::{Builder, Env};
 use iban::Iban;
 use log::{debug, error, info, warn};
@@ -38,9 +38,7 @@ struct Transaction<'a> {
     date: NaiveDate,
     valuta: NaiveDate,
     amount: MyMoney<'a, Currency>,
-    #[serde(skip_serializing)]
     creditor: Party,
-    #[serde(skip_serializing)]
     debtor: Party,
     transaction_type: String,
     description: String,
@@ -187,7 +185,8 @@ fn main() {
             .expect("Could not read file")
     }).collect();
 
-    let mut writer = Writer::from_writer(vec![]);
+    let mut writer = WriterBuilder::new().has_headers(true).delimiter(b';').from_writer(vec![]);
+    writer.serialize(("Date", "Valuta", "Amount", "Creditor Name", "Creditor IBAN", "Debtor Name", "Debtor IBAN", "Transaction Type", "Description")).unwrap();
     transactions.iter().for_each(|transaction| {
         writer.serialize(transaction).unwrap();
     });
