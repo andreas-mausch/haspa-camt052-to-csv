@@ -4,14 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chrono = "0.4.26"
+chrono = { version = "0.4.26", features = ["serde"] }
 clap = { version = "4.3.5", features = ["derive"] }
+csv = "1.2.2"
 env_logger = "0.10.0"
-iban = "0.1.6"
+iban_validate = { version = "4.0.1", features = ["serde"] }
 log = "0.4.19"
 roxmltree = "0.18.0"
 rust_decimal = "1.30.0"
 rusty-money = "0.4.1"
+serde = { version = "1.0.164", features = ["derive"] }
 tree_magic_mini = "3.0.3"
 zip = "0.6.6"
 

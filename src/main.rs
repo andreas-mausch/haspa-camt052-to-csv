@@ -5,16 +5,20 @@ use std::path::Path;
 
 use chrono::{NaiveDate, ParseResult};
 use clap::Parser;
+use csv::Writer;
 use env_logger::{Builder, Env};
 use iban::Iban;
 use log::{debug, error, info, warn};
 use rust_decimal::Decimal;
 use rusty_money::{iso, Money};
 use rusty_money::iso::Currency;
+use serde::Serialize;
 
+use crate::rusty_money_serde::MyMoney;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 mod xml_document_finder;
+mod rusty_money_serde;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -23,18 +27,20 @@ struct Args {
     files: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct Party {
     name: String,
     iban: Option<Iban>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct Transaction<'a> {
     date: NaiveDate,
     valuta: NaiveDate,
-    amount: Money<'a, Currency>,
+    amount: MyMoney<'a, Currency>,
+    #[serde(skip_serializing)]
     creditor: Party,
+    #[serde(skip_serializing)]
     debtor: Party,
     transaction_type: String,
     description: String,
@@ -102,8 +108,8 @@ fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<d
         // Otherwise, we could use Money::from_str() directly.
         let money_decimal = amount.parse::<Decimal>()
             .map(|amount| if debit { -amount } else { amount })?;
-        let money = Money::from_decimal(money_decimal,
-                                        iso::find(currency).ok_or("Currency not found")?);
+        let money = MyMoney(Money::from_decimal(money_decimal,
+                                                iso::find(currency).ok_or("Currency not found")?));
 
         Ok(Transaction {
             date,
@@ -118,7 +124,7 @@ fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<d
     transactions.into_iter().collect()
 }
 
-fn process_file<R: Read + Seek>(path: &Path, read: R) -> Result<(), Box<dyn Error>> {
+fn process_file<'a, R: Read + Seek>(path: &Path, read: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
     let mut reader = BufReader::new(read);
     let mut beginning_of_file = vec![0u8; 2048];
     reader.read(&mut beginning_of_file)?;
@@ -131,29 +137,28 @@ fn process_file<R: Read + Seek>(path: &Path, read: R) -> Result<(), Box<dyn Erro
         }
         "application/xml" => {
             info!("Processing XML file: {:?}", path);
-            let transactions = process_xml(reader);
-            error!("{:#?}", transactions);
-            transactions.map(|x| ())
+            process_xml(reader)
         }
         _ => {
             warn!("File found, but it is not ZIP or XML, skipping: {:?}", path);
-            Ok(())
+            Ok(vec![])
         }
     }
 }
 
-fn read_zip<R: Read + Seek>(path: &Path, reader: R) -> Result<(), Box<dyn Error>> {
+fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
     let mut archive = zip::ZipArchive::new(reader)?;
-    for index in 0..archive.len() {
+    let transactions = (0..archive.len()).map(|index| {
         let mut file_in_archive = archive.by_index(index)?;
         debug!("File in archive: {:?}", file_in_archive.name());
 
         let mut buffer = Vec::new();
         file_in_archive.read_to_end(&mut buffer)?;
         let cursor = Cursor::new(buffer);
-        process_file(path.join(file_in_archive.name()).as_path(), cursor)?
-    }
-    Ok(())
+        process_file(path.join(file_in_archive.name()).as_path(), cursor)
+    }).collect::<Result<Vec<_>, _>>()?
+        .into_iter().flatten().collect();
+    Ok(transactions)
 }
 
 fn main() {
@@ -172,13 +177,21 @@ fn main() {
 
     info!("All files exist: {:?}", args.files);
 
-    paths.iter().for_each(|path| {
+    let transactions: Vec<_> = paths.iter().flat_map(|path| {
         File::open(path)
             .map_err(|e| e.into())
             .and_then(|f| {
                 let reader = BufReader::new(f);
                 process_file(path, reader)
             })
-            .expect("Could not read file");
+            .expect("Could not read file")
+    }).collect();
+
+    let mut writer = Writer::from_writer(vec![]);
+    transactions.iter().for_each(|transaction| {
+        writer.serialize(transaction).unwrap();
     });
+    writer.flush().expect("Cannot flush writer");
+    let csv_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
+    info!("CSV Output:\n\n{}", csv_output);
 }
