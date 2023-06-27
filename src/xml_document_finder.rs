@@ -1,8 +1,13 @@
+use std::error::Error;
+
+use chrono::ParseError;
 use roxmltree::Node;
+
+use crate::date_parser::IsoDate;
 
 pub trait XmlDocumentFinder {
     fn find(&self, name: &str) -> Option<Node>;
-    fn find_into<T>(&self, name: &str, convert: impl Fn(&str) -> Option<T>) -> Option<T>;
+    fn find_into<T>(&self, name: &str) -> Result<IsoDate, Box<dyn Error>>;
     fn filter(&self, name: &str) -> Vec<Node>;
 }
 
@@ -18,10 +23,11 @@ impl XmlDocumentFinder for Node<'_, '_> {
         node
     }
 
-    fn find_into<T>(&self, name: &str, convert: impl Fn(&str) -> Option<T>) -> Option<T> {
+    fn find_into<T>(&self, name: &str) -> Result<IsoDate, Box<dyn Error>> {
         self.find(name)
             .and_then(|node| node.text())
-            .and_then(|text| convert(text))
+            .ok_or::<Box<dyn Error>>(format!("No node '{}'", name).into())
+            .and_then(|x| x.try_into().map_err(|e: ParseError| e.into()))
     }
 
     fn filter(&self, name: &str) -> Vec<Node> {
