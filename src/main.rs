@@ -8,7 +8,7 @@ use chrono::NaiveDate;
 use clap::Parser;
 use csv::WriterBuilder;
 use env_logger::{Builder, Env};
-use iban::Iban;
+use iban::{Iban, ParseIbanError};
 use log::{debug, error, info, warn};
 use roxmltree::Node;
 use rust_decimal::Decimal;
@@ -68,10 +68,10 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
                 warn!("No creditor found: Date {}, Amount {}", date, amount);
                 "".to_string()
             }).trim().to_string();
-        let creditor_iban = value.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
-            .and_then(|it| it.text())
-            .map(|node| node.trim())
-            .and_then(|iban| iban.parse::<Iban>().ok());
+        let creditor_iban = value.find_into::<String>("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
+            .and_then(|option| option.map_or(Ok(None), |iban| iban.trim().parse::<Iban>()
+                .map(|t| Some(t))
+                .map_err(|e: ParseIbanError| e.to_string().into())))?;
         let debtor = value.find_into::<String>("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?
             .or(value.find_into::<String>("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm")?)
             .unwrap_or_else(|| {
