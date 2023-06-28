@@ -28,17 +28,12 @@ impl XmlDocumentFinder for Node<'_, '_> {
     fn find_into<T>(&self, name: &str) -> Result<Option<T>, Box<dyn Error>>
         where T: for<'a> TryFrom<&'a str>,
               for<'a> <T as TryFrom<&'a str>>::Error: Error {
-        let option = self.find(name)
-            .and_then(|node| node.text());
-
-        match option {
-            Some(text) => {
+        self.find(name)
+            .and_then(|node| node.text())
+            .map_or(Ok(None), |text|
                 text.try_into()
                     .map(|t| Some(t))
-                    .map_err(|e: T::Error| e.to_string().into())
-            }
-            None => Ok(None)
-        }
+                    .map_err(|e: T::Error| e.to_string().into()))
     }
 
     fn get_into<T>(&self, name: &str) -> Result<T, Box<dyn Error>>
