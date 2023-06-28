@@ -75,10 +75,7 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
                 warn!("No debtor found: Date {}, Amount {}", date, amount);
                 "".to_string()
             }).trim().to_string();
-        let debtor_iban = value.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
-            .and_then(|it| it.text())
-            .map(|node| node.trim())
-            .and_then(|iban| iban.parse::<Iban>().ok());
+        let debtor_iban = value.find_into::<Iban>("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")?;
         let transaction_type = value.get_into::<String>("AddtlNtryInf")?.trim().to_string();
         let description = value.filter("NtryDtls/TxDtls/RmtInf/Ustrd")
             .iter().map(|node| node.text().unwrap_or(""))
