@@ -4,6 +4,9 @@ use roxmltree::Node;
 
 pub trait XmlDocumentFinder {
     fn find(&self, name: &str) -> Option<Node>;
+    fn find_into<T>(&self, name: &str) -> Result<Option<T>, Box<dyn Error>>
+        where T: for<'a> TryFrom<&'a str>,
+              for<'a> <T as TryFrom<&'a str>>::Error: Error;
     fn get_into<T>(&self, name: &str) -> Result<T, Box<dyn Error>>
         where T: for<'a> TryFrom<&'a str>,
               for<'a> <T as TryFrom<&'a str>>::Error: Error;
@@ -22,13 +25,28 @@ impl XmlDocumentFinder for Node<'_, '_> {
         node
     }
 
+    fn find_into<T>(&self, name: &str) -> Result<Option<T>, Box<dyn Error>>
+        where T: for<'a> TryFrom<&'a str>,
+              for<'a> <T as TryFrom<&'a str>>::Error: Error {
+        let option = self.find(name)
+            .and_then(|node| node.text());
+
+        match option {
+            Some(text) => {
+                text.try_into()
+                    .map(|x| Some(x))
+                    .map_err(|e: T::Error| e.to_string().into())
+            }
+            None => Ok(None)
+        }
+    }
+
     fn get_into<T>(&self, name: &str) -> Result<T, Box<dyn Error>>
         where T: for<'a> TryFrom<&'a str>,
               for<'a> <T as TryFrom<&'a str>>::Error: Error {
-        self.find(name)
-            .and_then(|node| node.text())
-            .ok_or::<Box<dyn Error>>(format!("No node '{}'", name).into())
-            .and_then(|x| x.try_into().map_err(|e: T::Error| e.to_string().into()))
+        self.find_into::<T>(name).and_then(|option| {
+            option.ok_or(format!("No node '{}'", name).into())
+        })
     }
 
     fn filter(&self, name: &str) -> Vec<Node> {

@@ -62,26 +62,22 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
         let currency = value.find("Amt")
             .and_then(|it| it.attribute("Ccy"))
             .ok_or::<Box<dyn Error>>("No text in 'Amt[Ccy]' attribute".into())?;
-        let creditor = value.find("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")
-            .or(value.find("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))
-            .and_then(|it| it.text())
-            .map(|node| node.trim())
+        let creditor = value.find_into::<String>("NtryDtls/TxDtls/RltdPties/Cdtr/Nm")?
+            .or(value.find_into::<String>("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm")?)
             .unwrap_or_else(|| {
                 warn!("No creditor found: Date {}, Amount {}", date, amount);
-                ""
-            });
+                "".to_string()
+            }).trim().to_string();
         let creditor_iban = value.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .and_then(|iban| iban.parse::<Iban>().ok());
-        let debtor = value.find("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")
-            .or(value.find("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))
-            .and_then(|it| it.text())
-            .map(|node| node.trim())
+        let debtor = value.find_into::<String>("NtryDtls/TxDtls/RltdPties/Dbtr/Nm")?
+            .or(value.find_into::<String>("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm")?)
             .unwrap_or_else(|| {
                 warn!("No debtor found: Date {}, Amount {}", date, amount);
-                ""
-            });
+                "".to_string()
+            }).trim().to_string();
         let debtor_iban = value.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
             .and_then(|it| it.text())
             .map(|node| node.trim())
