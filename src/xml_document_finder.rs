@@ -39,9 +39,9 @@ impl XmlDocumentFinder for Node<'_, '_> {
     fn get_into<T>(&self, name: &str) -> Result<T, Box<dyn Error>>
         where T: for<'a> TryFrom<&'a str>,
               for<'a> <T as TryFrom<&'a str>>::Error: Error {
-        self.find_into::<T>(name).and_then(|option| {
+        self.find_into::<T>(name).and_then(|option|
             option.ok_or(format!("No node '{}'", name).into())
-        })
+        )
     }
 
     fn filter(&self, name: &str) -> Vec<Node> {
