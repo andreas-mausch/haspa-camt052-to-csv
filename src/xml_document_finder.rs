@@ -34,7 +34,7 @@ impl XmlDocumentFinder for Node<'_, '_> {
         match option {
             Some(text) => {
                 text.try_into()
-                    .map(|x| Some(x))
+                    .map(|t| Some(t))
                     .map_err(|e: T::Error| e.to_string().into())
             }
             None => Ok(None)
