@@ -15,8 +15,8 @@ use rust_decimal::Decimal;
 use rusty_money::{iso, Money};
 use rusty_money::iso::Currency;
 use serde::Serialize;
-use crate::date_parser::IsoDate;
 
+use crate::date_parser::IsoDate;
 use crate::rusty_money_serde::MyMoney;
 use crate::xml_document_finder::XmlDocumentFinder;
 
@@ -68,7 +68,10 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
             .or(value.find("NtryDtls/TxDtls/RltdPties/Cdtr/Pty/Nm"))
             .and_then(|it| it.text())
             .map(|node| node.trim())
-            .ok_or::<Box<dyn Error>>("No creditor found".into())?;
+            .unwrap_or_else(|| {
+                warn!("No creditor found: Date {}, Amount {}", date, amount);
+                ""
+            });
         let creditor_iban = value.find("NtryDtls/TxDtls/RltdPties/CdtrAcct/Id/IBAN")
             .and_then(|it| it.text())
             .map(|node| node.trim())
@@ -77,7 +80,10 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
             .or(value.find("NtryDtls/TxDtls/RltdPties/Dbtr/Pty/Nm"))
             .and_then(|it| it.text())
             .map(|node| node.trim())
-            .ok_or::<Box<dyn Error>>("No debtor found".into())?;
+            .unwrap_or_else(|| {
+                warn!("No debtor found: Date {}, Amount {}", date, amount);
+                ""
+            });
         let debtor_iban = value.find("NtryDtls/TxDtls/RltdPties/DbtrAcct/Id/IBAN")
             .and_then(|it| it.text())
             .map(|node| node.trim())
@@ -150,7 +156,7 @@ fn process_file<'a, R: Read + Seek>(path: &Path, read: R) -> Result<Vec<Transact
             warn!("File found, but it is not ZIP or XML, skipping: {:?}", path);
             Ok(vec![])
         }
-    }
+    }.map_err(|e| format!("Error processing file {:?}: {}", path, e.to_string()).into())
 }
 
 fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
