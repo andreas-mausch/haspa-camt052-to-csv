@@ -57,10 +57,8 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
     fn try_from(value: &Node) -> Result<Self, Self::Error> {
         let date = value.find_into::<IsoDate>("BookgDt/Dt")?.0;
         let valuta = value.find_into::<IsoDate>("ValDt/Dt")?.0;
-        let debit = value.find("CdtDbtInd").and_then(|it| it.text()) == Some("DBIT");
-        let amount = value.find("Amt")
-            .and_then(|it| it.text())
-            .ok_or::<Box<dyn Error>>("No text in 'Amt' node".into())?;
+        let debit = value.find_into::<String>("CdtDbtInd")? == "DBIT";
+        let amount = value.find_into::<String>("Amt")?;
         let currency = value.find("Amt")
             .and_then(|it| it.attribute("Ccy"))
             .ok_or::<Box<dyn Error>>("No text in 'Amt[Ccy]' attribute".into())?;
@@ -88,10 +86,7 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
             .and_then(|it| it.text())
             .map(|node| node.trim())
             .and_then(|iban| iban.parse::<Iban>().ok());
-        let transaction_type = value.find("AddtlNtryInf")
-            .and_then(|it| it.text())
-            .map(|node| node.trim())
-            .ok_or::<Box<dyn Error>>("No transaction type found".into())?;
+        let transaction_type = value.find_into::<String>("AddtlNtryInf")?.trim().to_string();
         let description = value.filter("NtryDtls/TxDtls/RmtInf/Ustrd")
             .iter().map(|node| node.text().unwrap_or(""))
             .map(|node| node.trim())
