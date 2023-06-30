@@ -108,9 +108,7 @@ fn main() {
             .expect("Could not read file")
     }).collect();
 
-    let csv_output = Csv::write(&transactions).expect("Cannot serialise to .csv");
     // Replace File::create() by File::create_new() once it is stable
-    let mut output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
-
-    writeln!(output_stream, "{}", csv_output).unwrap();
+    let output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
+    Csv::write(&transactions, output_stream).expect("Cannot serialise to .csv");
 }

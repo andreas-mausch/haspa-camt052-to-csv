@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::Write;
 
 use csv::WriterBuilder;
 
@@ -8,13 +9,14 @@ use crate::writers::Writer;
 pub struct Csv {}
 
 impl Writer for Csv {
-    fn write(transactions: &Vec<Transaction>) -> Result<String, Box<dyn Error>> {
-        let mut writer = WriterBuilder::new().has_headers(true).delimiter(b';').from_writer(vec![]);
+    fn write<W: Write>(transactions: &Vec<Transaction>, write: W) -> Result<(), Box<dyn Error>> {
+        let mut writer = WriterBuilder::new().has_headers(true).delimiter(b';').from_writer(write);
         writer.serialize(("Date", "Valuta", "Amount", "Currency", "Creditor Name", "Creditor IBAN", "Debtor Name", "Debtor IBAN", "Transaction Type", "Description"))?;
         transactions.iter().try_for_each(|transaction| {
             writer.serialize(transaction)
-        })?;
-        writer.flush()?;
-        Ok(String::from_utf8(writer.into_inner()?)?)
+                .map_err(|e| e.into())
+                .and_then(|()| writer.flush()
+                    .map_err(|e| e.into()))
+        })
     }
 }
