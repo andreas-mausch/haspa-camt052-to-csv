@@ -5,17 +5,18 @@ use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use clap::Parser;
-use csv::WriterBuilder;
 use env_logger::{Builder, Env};
 use log::{debug, error, info, warn};
 
 use crate::transaction::Transaction;
+use crate::writers::csv::to_csv;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 mod xml_document_finder;
 mod my_money;
 mod iso_date;
 mod transaction;
+mod writers;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -79,16 +80,6 @@ fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transactio
     }).collect::<Result<Vec<_>, _>>()?
         .into_iter().flatten().collect();
     Ok(transactions)
-}
-
-fn to_csv(transactions: Vec<Transaction>) -> Result<String, Box<dyn Error>> {
-    let mut writer = WriterBuilder::new().has_headers(true).delimiter(b';').from_writer(vec![]);
-    writer.serialize(("Date", "Valuta", "Amount", "Currency", "Creditor Name", "Creditor IBAN", "Debtor Name", "Debtor IBAN", "Transaction Type", "Description"))?;
-    transactions.iter().try_for_each(|transaction| {
-        writer.serialize(transaction)
-    })?;
-    writer.flush()?;
-    Ok(String::from_utf8(writer.into_inner()?)?)
 }
 
 fn main() {
