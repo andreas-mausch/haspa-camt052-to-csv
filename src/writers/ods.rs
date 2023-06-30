@@ -1,11 +1,10 @@
 use std::error::Error;
 use std::io::Write;
 
-use chrono::NaiveDate;
-use color::Rgb;
 use icu_locid::locale;
-use spreadsheet_ods::{CellStyle, format, formula, mm, Sheet, WorkBook};
-use spreadsheet_ods::style::units::{Border, Length, TextRelief};
+use indexmap::indexmap;
+use Length::Mm;
+use spreadsheet_ods::{CellStyle, Length, Sheet, ValueFormatText, WorkBook};
 
 use crate::transaction::Transaction;
 use crate::writers::Writer;
@@ -17,19 +16,32 @@ impl Writer for Ods {
         let mut workbook = WorkBook::new(locale!("de_DE"));
         let mut sheet = Sheet::new("Sheet");
 
-        let date_format = format::create_date_dmy_format("date_format");
-        let date_format = workbook.add_datetime_format(date_format);
+        let heading_style_format = ValueFormatText::new_named("heading");
+        let heading_style_format = workbook.add_text_format(heading_style_format);
 
-        let mut date_style = CellStyle::new("nice_date_style", &date_format);
-        date_style.set_font_bold();
-        date_style.set_font_relief(TextRelief::Engraved);
-        date_style.set_border(mm!(0.2), Border::Dashed, Rgb::new(192, 72, 72));
-        let date_style_ref = workbook.add_cellstyle(date_style);
+        let mut heading_style = CellStyle::new("heading", &heading_style_format);
+        heading_style.set_font_bold();
+        let heading_style_ref = workbook.add_cellstyle(heading_style);
 
-        sheet.set_value(0, 0, 21.4f32);
-        sheet.set_value(0, 1, "foo");
-        sheet.set_styled_value(0, 2, NaiveDate::from_ymd_opt(2020, 03, 01), &date_style_ref);
-        sheet.set_formula(0, 3, format!("of:={}+1", formula::fcellref(0, 0)));
+        let headings = indexmap! {
+            "Date" => 22.0,
+            "Valuta" => 22.0,
+            "Amount" => 25.0,
+            "Currency" => 17.0,
+            "Creditor" => 55.0,
+            "Creditor IBAN" => 55.0,
+            "Debtor" => 55.0,
+            "Debtor IBAN" => 55.0,
+            "Type" => 55.0,
+            "Description" => 100.0
+        };
+
+        sheet.set_row_cellstyle(0, &heading_style_ref);
+        headings.iter().enumerate().for_each(|(index, (&name, &width))| {
+            let indexu32 = index.try_into().unwrap();
+            sheet.set_styled_value(0, indexu32, name, &heading_style_ref);
+            sheet.set_col_width(indexu32, Mm(width));
+        });
 
         workbook.push_sheet(sheet);
 

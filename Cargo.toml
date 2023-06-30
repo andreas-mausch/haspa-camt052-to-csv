@@ -11,6 +11,7 @@ csv = "1.2.2"
 env_logger = "0.10.0"
 iban_validate = { version = "4.0.1", features = ["serde"] }
 icu_locid = "1.2.0"
+indexmap = "2.0.0"
 log = "0.4.19"
 roxmltree = "0.18.0"
 rust_decimal = "1.30.0"
