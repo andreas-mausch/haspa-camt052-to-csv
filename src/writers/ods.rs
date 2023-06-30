@@ -12,7 +12,7 @@ use crate::writers::Writer;
 pub struct Ods {}
 
 impl Writer for Ods {
-    fn write<W: Write>(_transactions: &Vec<Transaction>, mut write: W) -> Result<(), Box<dyn Error>> {
+    fn write<W: Write>(transactions: &Vec<Transaction>, mut write: W) -> Result<(), Box<dyn Error>> {
         let mut workbook = WorkBook::new(locale!("de_DE"));
         let mut sheet = Sheet::new("Sheet");
 
@@ -41,6 +41,21 @@ impl Writer for Ods {
             let indexu32 = index.try_into().unwrap();
             sheet.set_styled_value(0, indexu32, name, &heading_style_ref);
             sheet.set_col_width(indexu32, Mm(width));
+        });
+
+        transactions.iter().enumerate().for_each(|(index, transaction)| {
+            let serialized = serde_json::to_value(transaction).unwrap();
+            let indexu32: u32 = index.try_into().unwrap();
+            sheet.set_value(indexu32 + 1, 0, serialized.get("date").unwrap().as_str().unwrap());
+            sheet.set_value(indexu32 + 1, 1, serialized.get("valuta").unwrap().as_str().unwrap());
+            sheet.set_value(indexu32 + 1, 2, serialized.get("amount").unwrap().as_array().unwrap().get(0).unwrap().as_str().unwrap());
+            sheet.set_value(indexu32 + 1, 3, serialized.get("amount").unwrap().as_array().unwrap().get(1).unwrap().as_str().unwrap());
+            sheet.set_value(indexu32 + 1, 4, serialized.get("creditor").map(|creditor| creditor.get("name")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 5, serialized.get("creditor").map(|creditor| creditor.get("iban")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 6, serialized.get("debtor").map(|debtor| debtor.get("name")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 7, serialized.get("debtor").map(|debtor| debtor.get("iban")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 8, serialized.get("transaction_type").unwrap().as_str().unwrap());
+            sheet.set_value(indexu32 + 1, 9, serialized.get("description").unwrap().as_str().unwrap());
         });
 
         workbook.push_sheet(sheet);

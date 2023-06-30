@@ -14,20 +14,20 @@ use crate::my_money::MyMoney;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 #[derive(Debug, Serialize)]
-struct Party {
-    name: String,
-    iban: Option<Iban>,
+pub struct Party {
+    pub(crate) name: String,
+    pub(crate) iban: Option<Iban>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Transaction<'a> {
-    date: NaiveDate,
-    valuta: NaiveDate,
-    amount: MyMoney<'a, Currency>,
-    creditor: Party,
-    debtor: Party,
-    transaction_type: String,
-    description: String,
+    pub(crate) date: NaiveDate,
+    pub(crate) valuta: NaiveDate,
+    pub(crate) amount: MyMoney<'a, Currency>,
+    pub(crate) creditor: Party,
+    pub(crate) debtor: Party,
+    pub(crate) transaction_type: String,
+    pub(crate) description: String,
 }
 
 impl TryFrom<&Node<'_, '_>> for Transaction<'_> {

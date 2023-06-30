@@ -17,6 +17,7 @@ roxmltree = "0.18.0"
 rust_decimal = "1.30.0"
 rusty-money = "0.4.1"
 serde = { version = "1.0.164", features = ["derive"] }
+serde_json = "1.0.99"
 spreadsheet-ods = "0.15.0"
 tree_magic_mini = "3.0.3"
 zip = "0.6.6"
