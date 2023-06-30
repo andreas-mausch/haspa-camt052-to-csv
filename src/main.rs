@@ -14,7 +14,7 @@ use crate::xml_document_finder::XmlDocumentFinder;
 
 mod xml_document_finder;
 mod rusty_money_serde;
-mod date_parser;
+mod iso_date;
 mod transaction;
 
 #[derive(Parser, Debug)]
