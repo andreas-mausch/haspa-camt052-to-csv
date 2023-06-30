@@ -10,7 +10,7 @@ use rusty_money::iso::Currency;
 use serde::Serialize;
 
 use crate::iso_date::IsoDate;
-use crate::rusty_money_serde::MyMoney;
+use crate::my_money::MyMoney;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 #[derive(Debug, Serialize)]

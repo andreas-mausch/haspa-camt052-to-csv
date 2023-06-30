@@ -13,7 +13,7 @@ use crate::transaction::Transaction;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 mod xml_document_finder;
-mod rusty_money_serde;
+mod my_money;
 mod iso_date;
 mod transaction;
 
