@@ -9,7 +9,8 @@ use env_logger::{Builder, Env};
 use log::{debug, error, info, warn};
 
 use crate::transaction::Transaction;
-use crate::writers::csv::to_csv;
+use crate::writers::csv::Csv;
+use crate::writers::Writer;
 use crate::xml_document_finder::XmlDocumentFinder;
 
 mod xml_document_finder;
@@ -107,7 +108,7 @@ fn main() {
             .expect("Could not read file")
     }).collect();
 
-    let csv_output = to_csv(transactions).expect("Cannot serialise to .csv");
+    let csv_output = Csv::write(&transactions).expect("Cannot serialise to .csv");
     // Replace File::create() by File::create_new() once it is stable
     let mut output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
 
