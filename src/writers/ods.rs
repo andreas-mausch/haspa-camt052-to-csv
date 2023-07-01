@@ -5,6 +5,7 @@ use icu_locid::locale;
 use indexmap::indexmap;
 use Length::Mm;
 use spreadsheet_ods::{CellStyle, CellStyleRef, Length, Sheet, ValueFormatText, WorkBook};
+use spreadsheet_ods::format::create_date_dmy_format;
 
 use crate::transaction::Transaction;
 use crate::writers::Writer;
@@ -20,6 +21,14 @@ impl Ods {
         heading_style.set_font_bold();
         workbook.add_cellstyle(heading_style)
     }
+
+    fn create_date_style(workbook: &mut WorkBook) -> CellStyleRef {
+        let date_format = create_date_dmy_format("date_format");
+        let date_format = workbook.add_datetime_format(date_format);
+
+        let date_style = CellStyle::new("iso_date_style", &date_format);
+        workbook.add_cellstyle(date_style)
+    }
 }
 
 impl Writer for Ods {
@@ -27,7 +36,8 @@ impl Writer for Ods {
         let mut workbook = WorkBook::new(locale!("de_DE"));
         let mut sheet = Sheet::new("Sheet");
 
-        let heading_style_ref = Self::create_heading_style(&mut workbook);
+        let heading_style = Self::create_heading_style(&mut workbook);
+        let date_style = Self::create_date_style(&mut workbook);
 
         let headings = indexmap! {
             "Date" => 22.0,
@@ -42,18 +52,18 @@ impl Writer for Ods {
             "Description" => 100.0
         };
 
-        sheet.set_row_cellstyle(0, &heading_style_ref);
+        sheet.set_row_cellstyle(0, &heading_style);
         headings.iter().enumerate().for_each(|(index, (&name, &width))| {
             let indexu32 = index.try_into().unwrap();
-            sheet.set_styled_value(0, indexu32, name, &heading_style_ref);
+            sheet.set_styled_value(0, indexu32, name, &heading_style);
             sheet.set_col_width(indexu32, Mm(width));
         });
 
         transactions.iter().enumerate().for_each(|(index, transaction)| {
             let serialized = serde_json::to_value(transaction).unwrap();
             let indexu32: u32 = index.try_into().unwrap();
-            sheet.set_value(indexu32 + 1, 0, serialized.get("date").unwrap().as_str().unwrap());
-            sheet.set_value(indexu32 + 1, 1, serialized.get("valuta").unwrap().as_str().unwrap());
+            sheet.set_styled_value(indexu32 + 1, 0, transaction.date, &date_style);
+            sheet.set_styled_value(indexu32 + 1, 1, transaction.valuta, &date_style);
             sheet.set_value(indexu32 + 1, 2, serialized.get("amount").unwrap().as_array().unwrap().get(0).unwrap().as_str().unwrap());
             sheet.set_value(indexu32 + 1, 3, serialized.get("amount").unwrap().as_array().unwrap().get(1).unwrap().as_str().unwrap());
             sheet.set_value(indexu32 + 1, 4, serialized.get("creditor").map(|creditor| creditor.get("name")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
