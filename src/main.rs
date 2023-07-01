@@ -126,8 +126,9 @@ fn main() {
     // Replace File::create() by File::create_new() once it is stable
     let output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
 
-    match args.format {
-        Format::Csv => Csv::write(&transactions, output_stream),
-        Format::Ods => Ods::write(&transactions, output_stream)
-    }.expect("Cannot serialise transactions to output");
+    let write = match args.format {
+        Format::Csv => Csv::write,
+        Format::Ods => Ods::write
+    };
+    write(&transactions, output_stream).expect("Cannot serialise transactions to output");
 }
