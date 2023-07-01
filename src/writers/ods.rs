@@ -9,7 +9,7 @@ use spreadsheet_ods::{CellStyle, CellStyleRef, Length, Sheet, ValueFormatText, W
 use crate::transaction::Transaction;
 use crate::writers::Writer;
 
-pub struct Ods {}
+pub struct Ods;
 
 impl Ods {
     fn create_heading_style(workbook: &mut WorkBook) -> CellStyleRef {

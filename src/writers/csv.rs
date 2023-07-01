@@ -6,7 +6,7 @@ use csv::WriterBuilder;
 use crate::transaction::Transaction;
 use crate::writers::Writer;
 
-pub struct Csv {}
+pub struct Csv;
 
 impl Writer for Csv {
     fn write<W: Write>(transactions: &Vec<Transaction>, write: W) -> Result<(), Box<dyn Error>> {
