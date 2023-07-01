@@ -4,24 +4,30 @@ use std::io::Write;
 use icu_locid::locale;
 use indexmap::indexmap;
 use Length::Mm;
-use spreadsheet_ods::{CellStyle, Length, Sheet, ValueFormatText, WorkBook};
+use spreadsheet_ods::{CellStyle, CellStyleRef, Length, Sheet, ValueFormatText, WorkBook};
 
 use crate::transaction::Transaction;
 use crate::writers::Writer;
 
 pub struct Ods {}
 
-impl Writer for Ods {
-    fn write<W: Write>(transactions: &Vec<Transaction>, mut write: W) -> Result<(), Box<dyn Error>> {
-        let mut workbook = WorkBook::new(locale!("de_DE"));
-        let mut sheet = Sheet::new("Sheet");
-
+impl Ods {
+    fn create_heading_style(workbook: &mut WorkBook) -> CellStyleRef {
         let heading_style_format = ValueFormatText::new_named("heading");
         let heading_style_format = workbook.add_text_format(heading_style_format);
 
         let mut heading_style = CellStyle::new("heading", &heading_style_format);
         heading_style.set_font_bold();
-        let heading_style_ref = workbook.add_cellstyle(heading_style);
+        workbook.add_cellstyle(heading_style)
+    }
+}
+
+impl Writer for Ods {
+    fn write<W: Write>(transactions: &Vec<Transaction>, mut write: W) -> Result<(), Box<dyn Error>> {
+        let mut workbook = WorkBook::new(locale!("de_DE"));
+        let mut sheet = Sheet::new("Sheet");
+
+        let heading_style_ref = Self::create_heading_style(&mut workbook);
 
         let headings = indexmap! {
             "Date" => 22.0,
