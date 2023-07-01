@@ -4,12 +4,14 @@ use std::io;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use env_logger::{Builder, Env};
 use log::{debug, error, info, warn};
 
+use writers::csv::Csv;
+use writers::ods::Ods;
+
 use crate::transaction::Transaction;
-use crate::writers::csv::Csv;
 use crate::writers::Writer;
 use crate::xml_document_finder::XmlDocumentFinder;
 
@@ -19,12 +21,25 @@ mod iso_date;
 mod transaction;
 mod writers;
 
+#[derive(ValueEnum, Clone, Debug)]
+enum Format {
+    Csv,
+    Ods,
+}
+
+/// Convert camt052 files into csv or ods
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[structopt(index = 1, required = true)]
+    /// Input camt052 files
+    #[arg(required = true)]
     files: Vec<String>,
 
+    /// Format of the output file
+    #[arg(value_enum, short, long, default_value_t = Format::Csv)]
+    format: Format,
+
+    /// Output filename. Use "-" to output to stdout
     #[arg(short, long, default_value = "-")]
     output: String,
 }
@@ -110,5 +125,9 @@ fn main() {
 
     // Replace File::create() by File::create_new() once it is stable
     let output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
-    Csv::write(&transactions, output_stream).expect("Cannot serialise to .csv");
+
+    match args.format {
+        Format::Csv => Csv::write(&transactions, output_stream),
+        Format::Ods => Ods::write(&transactions, output_stream)
+    }.expect("Cannot serialise transactions to output");
 }
