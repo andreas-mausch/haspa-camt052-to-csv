@@ -51,6 +51,16 @@ unzip -p output.ods styles.xml | xmllint --format -
 cargo test
 ```
 
+# Cross-compile for Windows
+
+```bash
+rustup target list
+rustup target add x86_64-pc-windows-gnu
+sudo pacman -S mingw-w64-gcc
+RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-pc-windows-gnu
+wine ./target/x86_64-pc-windows-gnu/release/haspa-camt052-to-csv.exe
+```
+
 # camt052 / camt053 File format specification
 
 I am not exactly sure what this file format is, but I think it is used in Europe only.
