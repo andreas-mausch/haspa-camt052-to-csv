@@ -98,10 +98,9 @@ fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transactio
     Ok(transactions)
 }
 
-fn main() {
+fn camt052(args: Args) {
     Builder::from_env(Env::default().default_filter_or("debug")).init();
 
-    let args = Args::parse();
     info!("Files {:?}!", args.files);
     let paths = args.files.iter().map(|file| Path::new(file)).collect::<Vec<_>>();
     let non_existing_files = paths.iter().filter(|path| !path.exists() || !path.is_file()).collect::<Vec<_>>();
@@ -131,4 +130,9 @@ fn main() {
         Format::Ods => Ods::write
     };
     write(&transactions, output_stream).expect("Cannot serialise transactions to output");
+}
+
+fn main() {
+    let args = Args::parse();
+    camt052(args)
 }
