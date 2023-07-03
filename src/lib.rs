@@ -110,7 +110,7 @@ pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write
 
     info!("All files exist: {:?}", files);
 
-    let transactions: Result<Vec<Transaction>, Box<dyn Error>> = paths.iter().map(|path| {
+    let transactions: Result<Vec<Transaction>, Box<dyn Error>> = paths.iter().map(|&path| {
         File::open(path)
             .map_err(|e| e.into())
             .and_then(|f| {
