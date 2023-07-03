@@ -21,7 +21,7 @@ mod transaction;
 mod writers;
 
 #[derive(ValueEnum, Clone, Debug)]
-enum Format {
+pub enum Format {
     Csv,
     Ods,
 }
@@ -97,34 +97,41 @@ fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transactio
     Ok(transactions)
 }
 
-pub fn camt052(args: Args) {
-    info!("Files {:?}!", args.files);
-    let paths = args.files.iter().map(|file| Path::new(file)).collect::<Vec<_>>();
+pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write) -> Result<(), Box<dyn Error>> {
+    info!("Files {:?}!", files);
+    let paths = files.iter().map(|file| Path::new(file)).collect::<Vec<_>>();
     let non_existing_files = paths.iter().filter(|path| !path.exists() || !path.is_file()).collect::<Vec<_>>();
 
     if !non_existing_files.is_empty() {
-        error!("File does not exist: {:?}", non_existing_files);
-        return;
+        return Err(format!("File does not exist: {:?}", non_existing_files).into());
     }
 
-    info!("All files exist: {:?}", args.files);
+    info!("All files exist: {:?}", files);
 
-    let transactions: Vec<_> = paths.iter().flat_map(|path| {
+    let transactions: Vec<_> = paths.iter().map(|path| {
         File::open(path)
             .map_err(|e| e.into())
             .and_then(|f| {
                 let reader = BufReader::new(f);
                 process_file(path, reader)
             })
-            .expect("Could not read file")
     }).collect();
+    let y: Result<Vec<Vec<Transaction>>, Box<dyn Error>> = transactions.into_iter().collect();
+    let z: Result<Vec<Transaction>, Box<dyn Error>> = y.map(|value| value.into_iter().flatten().collect());
 
-    // Replace File::create() by File::create_new() once it is stable
-    let output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
-
-    let write = match args.format {
+    let write = match format {
         Format::Csv => Csv::write,
         Format::Ods => Ods::write
     };
-    write(&transactions, output_stream).expect("Cannot serialise transactions to output");
+    write(&z?, output_stream)
+}
+
+pub fn camt052(args: Args) {
+    // Replace File::create() by File::create_new() once it is stable
+    let mut output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
+    process(args.files, args.format, &mut output_stream)
+        .unwrap_or_else(|e| {
+            error!("Could not parse files {:#?}", e);
+            std::process::exit(1)
+        });
 }
