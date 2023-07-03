@@ -126,10 +126,21 @@ pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write
     write(&z?, output_stream)
 }
 
+fn get_output_stream(output: &str) -> Result<Box<dyn Write>, Box<dyn Error>> {
+    if output == "-" {
+        Ok(Box::new(io::stdout()))
+    } else {
+        // Replace File::create() by File::create_new() once it is stable
+        let x: Result<Box<dyn Write>, Box<dyn Error>> = File::create(output)
+            .map(|file| -> Box<dyn Write> { Box::new(file) })
+            .map_err(|e| e.into());
+        x
+    }
+}
+
 pub fn camt052(args: Args) {
-    // Replace File::create() by File::create_new() once it is stable
-    let mut output_stream: Box<dyn Write> = if args.output == "-" { Box::new(io::stdout()) } else { Box::new(File::create(args.output).unwrap()) };
-    process(args.files, args.format, &mut output_stream)
+    get_output_stream(&args.output).and_then(|mut output_stream|
+        process(args.files, args.format, &mut output_stream))
         .unwrap_or_else(|e| {
             error!("Could not parse files {:#?}", e);
             std::process::exit(1)
