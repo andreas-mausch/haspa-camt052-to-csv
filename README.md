@@ -45,6 +45,12 @@ unzip -p output.ods content.xml | xmllint --format -
 unzip -p output.ods styles.xml | xmllint --format -
 ```
 
+# Tests
+
+```bash
+cargo test
+```
+
 # camt052 / camt053 File format specification
 
 I am not exactly sure what this file format is, but I think it is used in Europe only.
