@@ -1,12 +1,10 @@
 use std::error::Error;
 use std::fs::File;
-use std::io;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
-use std::process::ExitCode;
 
-use clap::{Parser, ValueEnum};
-use log::{debug, error, info, warn};
+use clap::{ValueEnum};
+use log::{debug, info, warn};
 
 use writers::csv::Csv;
 use writers::ods::Ods;
@@ -25,23 +23,6 @@ mod writers;
 pub enum Format {
     Csv,
     Ods,
-}
-
-/// Convert camt052 files into csv or ods
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    /// Input camt052 files
-    #[arg(required = true)]
-    files: Vec<String>,
-
-    /// Format of the output file
-    #[arg(value_enum, short, long, default_value_t = Format::Csv)]
-    format: Format,
-
-    /// Output filename. Use "-" to output to stdout
-    #[arg(short, long, default_value = "-")]
-    output: String,
 }
 
 fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
@@ -110,7 +91,7 @@ pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write
 
     info!("All files exist: {:?}", files);
 
-    let transactions: Result<Vec<Transaction>, Box<dyn Error>> = paths.iter().map(|&path| {
+    let transactions: Vec<Transaction> = paths.iter().map(|&path| {
         File::open(path)
             .map_err(|e| e.into())
             .and_then(|f| {
@@ -118,33 +99,11 @@ pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write
                 process_file(path, reader)
             })
     }).collect::<Result<Vec<Vec<_>>, _>>()
-        .map(|value| value.into_iter().flatten().collect());
+        .map(|value| value.into_iter().flatten().collect())?;
 
     let write = match format {
         Format::Csv => Csv::write,
         Format::Ods => Ods::write
     };
-    write(&transactions?, output_stream)
-}
-
-fn get_output_stream(output: &str) -> Result<Box<dyn Write>, Box<dyn Error>> {
-    if output == "-" {
-        Ok(Box::new(io::stdout()))
-    } else {
-        // Replace File::create() by File::create_new() once it is stable
-        let x: Result<Box<dyn Write>, Box<dyn Error>> = File::create(output)
-            .map(|file| -> Box<dyn Write> { Box::new(file) })
-            .map_err(|e| e.into());
-        x
-    }
-}
-
-pub fn camt052(args: Args) -> ExitCode {
-    get_output_stream(&args.output).and_then(|mut output_stream|
-        process(args.files, args.format, &mut output_stream))
-        .map(|()| ExitCode::SUCCESS)
-        .unwrap_or_else(|e| {
-            error!("Could not parse files {:#?}", e);
-            ExitCode::FAILURE
-        })
+    write(&transactions, output_stream)
 }
