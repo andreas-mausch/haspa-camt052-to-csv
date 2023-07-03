@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::process::ExitCode;
 
 use clap::{Parser, ValueEnum};
 use log::{debug, error, info, warn};
@@ -139,11 +140,12 @@ fn get_output_stream(output: &str) -> Result<Box<dyn Write>, Box<dyn Error>> {
     }
 }
 
-pub fn camt052(args: Args) {
+pub fn camt052(args: Args) -> ExitCode {
     get_output_stream(&args.output).and_then(|mut output_stream|
         process(args.files, args.format, &mut output_stream))
+        .map(|()| ExitCode::SUCCESS)
         .unwrap_or_else(|e| {
             error!("Could not parse files {:#?}", e);
-            std::process::exit(1)
-        });
+            ExitCode::FAILURE
+        })
 }
