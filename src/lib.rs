@@ -118,8 +118,8 @@ pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write
                 process_file(path, reader)
             })
     }).collect();
-    let y: Result<Vec<Vec<Transaction>>, Box<dyn Error>> = transactions.into_iter().collect();
-    let z: Result<Vec<Transaction>, Box<dyn Error>> = y.map(|value| value.into_iter().flatten().collect());
+    let z: Result<Vec<Transaction>, Box<dyn Error>> = transactions.into_iter().collect::<Result<Vec<Vec<_>>, _>>()
+        .map(|value| value.into_iter().flatten().collect());
 
     let write = match format {
         Format::Csv => Csv::write,
