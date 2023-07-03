@@ -1,11 +1,12 @@
 use std::error::Error;
 use std::io::Write;
 
-use icu_locid::locale;
+use icu_locid::{locale, Locale};
 use indexmap::indexmap;
 use Length::Mm;
+use rusty_money::iso;
 use spreadsheet_ods::{CellStyle, CellStyleRef, Length, Sheet, ValueFormatText, WorkBook};
-use spreadsheet_ods::format::create_date_dmy_format;
+use spreadsheet_ods::format::{create_date_dmy_format, create_loc_currency_suffix};
 
 use crate::transaction::Transaction;
 use crate::writers::Writer;
@@ -29,15 +30,25 @@ impl Ods {
         let date_style = CellStyle::new("iso_date_style", &date_format);
         workbook.add_cellstyle(date_style)
     }
+
+    fn create_currency_style(workbook: &mut WorkBook, locale: Locale) -> CellStyleRef {
+        let currency_format = create_loc_currency_suffix("currency_format", locale.clone(), locale.clone(), iso::EUR.symbol);
+        let currency_format = workbook.add_currency_format(currency_format);
+
+        let currency_style = CellStyle::new("eur_currency_style", &currency_format);
+        workbook.add_cellstyle(currency_style)
+    }
 }
 
 impl Writer for Ods {
     fn write<W: Write>(transactions: &Vec<Transaction>, mut write: W) -> Result<(), Box<dyn Error>> {
-        let mut workbook = WorkBook::new(locale!("de_DE"));
+        let locale = locale!("de_DE");
+        let mut workbook = WorkBook::new(locale.clone());
         let mut sheet = Sheet::new("Sheet");
 
         let heading_style = Self::create_heading_style(&mut workbook);
         let date_style = Self::create_date_style(&mut workbook);
+        let currency_style = Self::create_currency_style(&mut workbook, locale.clone());
 
         let headings = indexmap! {
             "Date" => 22.0,
@@ -64,7 +75,7 @@ impl Writer for Ods {
             let indexu32: u32 = index.try_into().unwrap();
             sheet.set_styled_value(indexu32 + 1, 0, transaction.date, &date_style);
             sheet.set_styled_value(indexu32 + 1, 1, transaction.valuta, &date_style);
-            sheet.set_value(indexu32 + 1, 2, serialized.get("amount").unwrap().as_array().unwrap().get(0).unwrap().as_str().unwrap());
+            sheet.set_styled_value(indexu32 + 1, 2, transaction.amount.0.amount().clone(), &currency_style);
             sheet.set_value(indexu32 + 1, 3, serialized.get("amount").unwrap().as_array().unwrap().get(1).unwrap().as_str().unwrap());
             sheet.set_value(indexu32 + 1, 4, serialized.get("creditor").map(|creditor| creditor.get("name")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
             sheet.set_value(indexu32 + 1, 5, serialized.get("creditor").map(|creditor| creditor.get("iban")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
