@@ -7,7 +7,5 @@ use haspa_camt052_to_csv::{Args, camt052};
 
 fn main() -> ExitCode {
     Builder::from_env(Env::default().default_filter_or("debug")).init();
-
-    let args = Args::parse();
-    camt052(args)
+    camt052(Args::parse())
 }
