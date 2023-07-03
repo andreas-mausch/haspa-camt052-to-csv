@@ -5,7 +5,6 @@ use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use clap::{Parser, ValueEnum};
-use env_logger::{Builder, Env};
 use log::{debug, error, info, warn};
 
 use writers::csv::Csv;
@@ -99,8 +98,6 @@ fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transactio
 }
 
 pub fn camt052(args: Args) {
-    Builder::from_env(Env::default().default_filter_or("debug")).init();
-
     info!("Files {:?}!", args.files);
     let paths = args.files.iter().map(|file| Path::new(file)).collect::<Vec<_>>();
     let non_existing_files = paths.iter().filter(|path| !path.exists() || !path.is_file()).collect::<Vec<_>>();
