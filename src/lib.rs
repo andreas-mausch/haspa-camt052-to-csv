@@ -60,6 +60,7 @@ fn process_xml<'a, R: Read>(mut reader: R) -> Result<Vec<Transaction<'a>>, Box<d
     transactions.into_iter().collect()
 }
 
+#[allow(clippy::unused_io_amount)]
 fn process_file<'a, R: Read + Seek>(path: &Path, read: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
     let mut reader = BufReader::new(read);
     let mut beginning_of_file = vec![0u8; 2048];
@@ -79,7 +80,7 @@ fn process_file<'a, R: Read + Seek>(path: &Path, read: R) -> Result<Vec<Transact
             warn!("File found, but it is not ZIP or XML, skipping: {:?}", path);
             Ok(vec![])
         }
-    }.map_err(|e| format!("Error processing file {:?}: {}", path, e.to_string()).into())
+    }.map_err(|e| format!("Error processing file {:?}: {}", path, e).into())
 }
 
 fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transaction<'a>>, Box<dyn Error>> {
@@ -99,7 +100,7 @@ fn read_zip<'a, R: Read + Seek>(path: &Path, reader: R) -> Result<Vec<Transactio
 
 pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write) -> Result<(), Box<dyn Error>> {
     info!("Files {:?}!", files);
-    let paths = files.iter().map(|file| Path::new(file)).collect::<Vec<_>>();
+    let paths = files.iter().map(Path::new).collect::<Vec<_>>();
     let non_existing_files = paths.iter().filter(|path| !path.exists() || !path.is_file()).collect::<Vec<_>>();
 
     if !non_existing_files.is_empty() {

@@ -32,7 +32,7 @@ impl Ods {
     }
 
     fn create_currency_style(workbook: &mut WorkBook, locale: Locale) -> CellStyleRef {
-        let currency_format = create_loc_currency_suffix("currency_format", locale.clone(), locale.clone(), iso::EUR.symbol);
+        let currency_format = create_loc_currency_suffix("currency_format", locale.clone(), locale, iso::EUR.symbol);
         let currency_format = workbook.add_currency_format(currency_format);
 
         let currency_style = CellStyle::new("eur_currency_style", &currency_format);
@@ -41,14 +41,14 @@ impl Ods {
 }
 
 impl Writer for Ods {
-    fn write<W: Write>(transactions: &Vec<Transaction>, mut write: W) -> Result<(), Box<dyn Error>> {
+    fn write<W: Write>(transactions: &[Transaction], mut write: W) -> Result<(), Box<dyn Error>> {
         let locale = locale!("de_DE");
         let mut workbook = WorkBook::new(locale.clone());
         let mut sheet = Sheet::new("Sheet");
 
         let heading_style = Self::create_heading_style(&mut workbook);
         let date_style = Self::create_date_style(&mut workbook);
-        let currency_style = Self::create_currency_style(&mut workbook, locale.clone());
+        let currency_style = Self::create_currency_style(&mut workbook, locale);
 
         let headings = indexmap! {
             "Date" => 22.0,
@@ -75,12 +75,12 @@ impl Writer for Ods {
             let indexu32: u32 = index.try_into().unwrap();
             sheet.set_styled_value(indexu32 + 1, 0, transaction.date, &date_style);
             sheet.set_styled_value(indexu32 + 1, 1, transaction.valuta, &date_style);
-            sheet.set_styled_value(indexu32 + 1, 2, transaction.amount.0.amount().clone(), &currency_style);
+            sheet.set_styled_value(indexu32 + 1, 2, *transaction.amount.0.amount(), &currency_style);
             sheet.set_value(indexu32 + 1, 3, serialized.get("amount").unwrap().as_array().unwrap().get(1).unwrap().as_str().unwrap());
-            sheet.set_value(indexu32 + 1, 4, serialized.get("creditor").map(|creditor| creditor.get("name")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
-            sheet.set_value(indexu32 + 1, 5, serialized.get("creditor").map(|creditor| creditor.get("iban")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
-            sheet.set_value(indexu32 + 1, 6, serialized.get("debtor").map(|debtor| debtor.get("name")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
-            sheet.set_value(indexu32 + 1, 7, serialized.get("debtor").map(|debtor| debtor.get("iban")).flatten().map(|value| value.as_str()).flatten().unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 4, serialized.get("creditor").and_then(|creditor| creditor.get("name")).and_then(|value| value.as_str()).unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 5, serialized.get("creditor").and_then(|creditor| creditor.get("iban")).and_then(|value| value.as_str()).unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 6, serialized.get("debtor").and_then(|debtor| debtor.get("name")).and_then(|value| value.as_str()).unwrap_or(""));
+            sheet.set_value(indexu32 + 1, 7, serialized.get("debtor").and_then(|debtor| debtor.get("iban")).and_then(|value| value.as_str()).unwrap_or(""));
             sheet.set_value(indexu32 + 1, 8, serialized.get("transaction_type").unwrap().as_str().unwrap());
             sheet.set_value(indexu32 + 1, 9, serialized.get("description").unwrap().as_str().unwrap());
         });

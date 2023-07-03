@@ -76,9 +76,9 @@ impl TryFrom<&Node<'_, '_>> for Transaction<'_> {
             date,
             valuta,
             amount: money,
-            creditor: Party { name: creditor.to_string(), iban: creditor_iban },
-            debtor: Party { name: debtor.to_string(), iban: debtor_iban },
-            transaction_type: transaction_type.to_string(),
+            creditor: Party { name: creditor, iban: creditor_iban },
+            debtor: Party { name: debtor, iban: debtor_iban },
+            transaction_type,
             description,
         })
     }
