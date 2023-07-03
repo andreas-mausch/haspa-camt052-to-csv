@@ -1,5 +1,7 @@
 use std::str::from_utf8;
 
+use pretty_assertions::assert_eq;
+
 use haspa_camt052_to_csv::Format::Csv;
 use haspa_camt052_to_csv::process;
 
