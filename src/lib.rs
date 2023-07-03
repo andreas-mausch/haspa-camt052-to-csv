@@ -110,22 +110,21 @@ pub fn process(files: Vec<String>, format: Format, output_stream: &mut dyn Write
 
     info!("All files exist: {:?}", files);
 
-    let transactions: Vec<_> = paths.iter().map(|path| {
+    let transactions: Result<Vec<Transaction>, Box<dyn Error>> = paths.iter().map(|path| {
         File::open(path)
             .map_err(|e| e.into())
             .and_then(|f| {
                 let reader = BufReader::new(f);
                 process_file(path, reader)
             })
-    }).collect();
-    let z: Result<Vec<Transaction>, Box<dyn Error>> = transactions.into_iter().collect::<Result<Vec<Vec<_>>, _>>()
+    }).collect::<Result<Vec<Vec<_>>, _>>()
         .map(|value| value.into_iter().flatten().collect());
 
     let write = match format {
         Format::Csv => Csv::write,
         Format::Ods => Ods::write
     };
-    write(&z?, output_stream)
+    write(&transactions?, output_stream)
 }
 
 fn get_output_stream(output: &str) -> Result<Box<dyn Write>, Box<dyn Error>> {
