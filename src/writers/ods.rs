@@ -8,7 +8,7 @@ use Length::Mm;
 use rusty_money::iso;
 use spreadsheet_ods::{CellStyle, CellStyleRef, Length, Sheet, ValueFormatCurrency, ValueFormatText, WorkBook};
 use spreadsheet_ods::condition::ValueCondition;
-use spreadsheet_ods::format::{create_date_dmy_format, create_loc_currency_suffix, ValueFormatTrait, ValueStyleMap};
+use spreadsheet_ods::format::{create_date_dmy_format, ValueFormatTrait, ValueStyleMap};
 
 use crate::transaction::Transaction;
 use crate::writers::Writer;
@@ -34,7 +34,18 @@ impl Ods {
     }
 
     fn create_currency_style(workbook: &mut WorkBook, locale: Locale) -> CellStyleRef {
-        let currency_format = create_loc_currency_suffix("currency_format", locale.clone(), locale.clone(), iso::EUR.symbol);
+        let mut currency_format = ValueFormatCurrency::new_localized("currency_format", locale.clone());
+        currency_format.part_number()
+            .min_integer_digits(1)
+            .decimal_places(2)
+            .min_decimal_places(2)
+            .grouping()
+            .build();
+        currency_format.part_text(" ").build();
+        currency_format.part_currency()
+            .locale(locale.clone())
+            .symbol(iso::EUR.symbol)
+            .build();
         let currency_format = workbook.add_currency_format(currency_format);
 
         let mut currency_format_negative = ValueFormatCurrency::new_localized("currency_format_negative", locale.clone());
